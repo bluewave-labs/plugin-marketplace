@@ -21,6 +21,12 @@
  */
 
 import { Router, Request, Response } from "express";
+import * as fs from "fs";
+import * as path from "path";
+
+// NOTE: Adjust this import path based on where your plugin is located
+// If in plugins/marketplace/my-plugin/, use "../../core/types"
+// If in plugins/builtin/my-plugin/, use "../../core/types"
 import {
   Plugin,
   PluginContext,
@@ -28,7 +34,7 @@ import {
   PluginEvent,
   EventHandlerMap,
   EventPayload,
-} from "../core/types";
+} from "../../core/types";
 
 // =============================================================================
 // TYPES
@@ -219,6 +225,23 @@ let stats = {
   failed: 0,
   filtered: 0,
 };
+
+/** Retry interval ID for cleanup */
+let retryIntervalId: ReturnType<typeof setInterval> | null = null;
+
+// =============================================================================
+// MANIFEST LOADER
+// =============================================================================
+
+/**
+ * Load manifest from JSON file
+ * Using fs.readFileSync instead of require() for better compatibility
+ */
+function loadManifest(): Record<string, unknown> {
+  const manifestPath = path.join(__dirname, "manifest.json");
+  const content = fs.readFileSync(manifestPath, "utf-8");
+  return JSON.parse(content);
+}
 
 // =============================================================================
 // HELPERS
@@ -430,6 +453,17 @@ function buildNotification(
         timestamp: new Date(),
       };
 
+    case PluginEvent.RISK_DELETED:
+      return {
+        title: "Risk Deleted",
+        message: `Risk "${payload.data.title || "Unknown"}" has been deleted.`,
+        severity: "warning",
+        fields: [
+          { name: "Title", value: payload.data.title as string || "Unknown" },
+        ],
+        timestamp: new Date(),
+      };
+
     case PluginEvent.TASK_CREATED:
       return {
         title: "New Task Assigned",
@@ -439,6 +473,20 @@ function buildNotification(
           { name: "Title", value: payload.data.title as string || "Untitled" },
           { name: "Priority", value: payload.data.priority as string || "Normal" },
           { name: "Due Date", value: payload.data.dueDate as string || "Not set" },
+        ],
+        url: `${baseUrl}/tasks/${payload.entityId}`,
+        timestamp: new Date(),
+      };
+
+    case PluginEvent.TASK_UPDATED:
+      return {
+        title: "Task Updated",
+        message: `Task "${payload.data.title}" has been updated.`,
+        severity: "info",
+        fields: [
+          { name: "Title", value: payload.data.title as string || "Untitled" },
+          { name: "Status", value: payload.data.status as string || "Unknown" },
+          { name: "Priority", value: payload.data.priority as string || "Normal" },
         ],
         url: `${baseUrl}/tasks/${payload.entityId}`,
         timestamp: new Date(),
@@ -489,7 +537,7 @@ const notificationSenderPlugin: Plugin = {
    * Plugin manifest
    */
   manifest: {
-    ...require("./manifest.json"),
+    ...loadManifest(),
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
       <rect width="32" height="32" rx="6" fill="#10B981"/>
       <path d="M16 8a6 6 0 0 0-6 6v4l-2 2v1h16v-1l-2-2v-4a6 6 0 0 0-6-6z" fill="white"/>
@@ -516,12 +564,22 @@ const notificationSenderPlugin: Plugin = {
     pluginContext = ctx;
     ctx.logger.info("Notification Sender plugin loaded");
 
-    // Start retry processor
-    setInterval(() => {
+    // Start retry processor (store ID for cleanup)
+    retryIntervalId = setInterval(() => {
       if (notificationQueue.length > 0 && pluginContext) {
         processRetryQueue(pluginContext);
       }
     }, RETRY_DELAY_MS);
+  },
+
+  async onUnload(ctx: PluginContext): Promise<void> {
+    // Clean up the retry interval to prevent memory leaks
+    if (retryIntervalId) {
+      clearInterval(retryIntervalId);
+      retryIntervalId = null;
+    }
+    pluginContext = null;
+    ctx.logger.info("Notification Sender plugin unloaded");
   },
 
   async onEnable(ctx: PluginContext): Promise<void> {

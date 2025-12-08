@@ -20,14 +20,20 @@
  * X-Webhook-Signature: sha256=abc123...
  */
 
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response } from "express";
 import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
+
+// NOTE: Adjust this import path based on where your plugin is located
+// If in plugins/marketplace/my-plugin/, use "../../core/types"
+// If in plugins/builtin/my-plugin/, use "../../core/types"
 import {
   Plugin,
   PluginContext,
   PluginManifest,
   EventHandlerMap,
-} from "../core/types";
+} from "../../core/types";
 
 // =============================================================================
 // TYPES
@@ -200,6 +206,23 @@ let failedWebhooks: FailedWebhook[] = [];
 /** Plugin context reference for use in routes */
 let pluginContext: PluginContext | null = null;
 
+/** Track if plugin is enabled */
+let isPluginEnabled = false;
+
+// =============================================================================
+// MANIFEST LOADER
+// =============================================================================
+
+/**
+ * Load manifest from JSON file
+ * Using fs.readFileSync instead of require() for better compatibility
+ */
+function loadManifest(): Record<string, unknown> {
+  const manifestPath = path.join(__dirname, "manifest.json");
+  const content = fs.readFileSync(manifestPath, "utf-8");
+  return JSON.parse(content);
+}
+
 // =============================================================================
 // PLUGIN DEFINITION
 // =============================================================================
@@ -210,7 +233,7 @@ const webhookReceiverPlugin: Plugin = {
    * The icon is embedded as an SVG string
    */
   manifest: {
-    ...require("./manifest.json"),
+    ...loadManifest(),
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
       <rect width="32" height="32" rx="6" fill="#6366F1"/>
       <path d="M16 8v8l6 3" stroke="white" stroke-width="2" stroke-linecap="round"/>
@@ -275,6 +298,7 @@ const webhookReceiverPlugin: Plugin = {
    * Called when the plugin is enabled
    */
   async onEnable(ctx: PluginContext): Promise<void> {
+    isPluginEnabled = true;
     ctx.logger.info("Webhook Receiver plugin enabled");
   },
 
@@ -282,6 +306,7 @@ const webhookReceiverPlugin: Plugin = {
    * Called when the plugin is disabled
    */
   async onDisable(ctx: PluginContext): Promise<void> {
+    isPluginEnabled = false;
     ctx.logger.info("Webhook Receiver plugin disabled - webhooks will be rejected");
   },
 
@@ -326,8 +351,6 @@ const webhookReceiverPlugin: Plugin = {
      */
     router.post(
       "/webhook",
-      // Middleware: Capture raw body for signature verification
-      captureRawBody,
       async (req: Request, res: Response) => {
         const ctx = pluginContext;
         if (!ctx) {
@@ -337,7 +360,26 @@ const webhookReceiverPlugin: Plugin = {
           });
         }
 
+        // Check if plugin is enabled
+        if (!isPluginEnabled) {
+          return res.status(503).json({
+            success: false,
+            error: "Plugin is disabled",
+          });
+        }
+
         const config = ctx.getConfig();
+
+        // NOTE: For signature verification to work, you need to configure
+        // Express to preserve the raw body. Add this to your Express setup:
+        //
+        // app.use(express.json({
+        //   verify: (req, res, buf) => {
+        //     (req as any).rawBody = buf.toString();
+        //   }
+        // }));
+        //
+        // The rawBody will then be available as (req as any).rawBody
 
         // Step 1: Verify IP allowlist
         const clientIP =
@@ -539,32 +581,6 @@ const webhookReceiverPlugin: Plugin = {
   },
 };
 
-// =============================================================================
-// MIDDLEWARE
-// =============================================================================
-
-/**
- * Middleware to capture raw request body for signature verification
- * Must be used before body parsing
- */
-function captureRawBody(req: Request, res: Response, next: NextFunction): void {
-  let data = "";
-  req.setEncoding("utf8");
-
-  req.on("data", (chunk) => {
-    data += chunk;
-  });
-
-  req.on("end", () => {
-    (req as Request & { rawBody: string }).rawBody = data;
-    try {
-      req.body = JSON.parse(data);
-    } catch {
-      req.body = {};
-    }
-    next();
-  });
-}
 
 // =============================================================================
 // WEBHOOK PROCESSOR
