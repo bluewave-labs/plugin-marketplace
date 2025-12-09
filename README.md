@@ -4,15 +4,7 @@ Official plugin registry for [VerifyWise](https://verifywise.ai) - the AI Govern
 
 ## Available Plugins
 
-| Plugin | Description | Type |
-|--------|-------------|------|
-| [Slack Notifications](./plugins/slack-notifications) | Real-time Slack notifications for risks, tasks, and compliance | Integration |
-| [Jira Integration](./plugins/jira-integration) | Sync risks and tasks with Jira | Integration |
-| [Microsoft Teams](./plugins/microsoft-teams) | Teams notifications and alerts | Integration |
-| [GDPR Compliance Checker](./plugins/gdpr-compliance-checker) | Automated GDPR compliance checking | Framework |
-| [ISO 27001](./plugins/iso-27001) | ISO 27001 compliance framework | Framework |
-| [SOC 2 Compliance](./plugins/soc2-compliance) | SOC 2 Type I/II compliance tracking | Framework |
-| [Audit Trail](./plugins/audit-trail) | Comprehensive activity logging | Feature |
+No plugins are currently published. Check back soon or contribute your own!
 
 ## Installing Plugins
 
@@ -24,14 +16,15 @@ Official plugin registry for [VerifyWise](https://verifywise.ai) - the AI Govern
 
 ## Creating Your Own Plugin
 
-See the [`templates`](./templates) directory for a comprehensive sample plugin with:
+See the [`templates`](./templates) directory for plugin development templates:
 
-- Full documentation and inline comments
-- All lifecycle hooks demonstrated
-- Event handlers for all entity types
-- Custom API routes
-- Dashboard widget examples
-- Configuration schema examples
+| Template | Description |
+|----------|-------------|
+| [template-basic-plugin](./templates/template-basic-plugin) | Simple plugin with lifecycle hooks and event handlers |
+| [template-custom-page](./templates/template-custom-page) | Plugin with a custom page in the sidebar |
+| [template-iframe-page](./templates/template-iframe-page) | Embed external content via iframe |
+| [template-notification-sender](./templates/template-notification-sender) | Send notifications to external services |
+| [template-webhook-receiver](./templates/template-webhook-receiver) | Receive and process webhooks |
 
 ### Quick Start
 
@@ -39,8 +32,8 @@ See the [`templates`](./templates) directory for a comprehensive sample plugin w
 # Clone this repository
 git clone https://github.com/bluewave-labs/plugin-marketplace.git
 
-# Copy the sample plugin template
-cp -r templates/sample-plugin plugins/my-plugin
+# Copy a template to start your plugin
+cp -r templates/template-basic-plugin plugins/my-plugin
 
 # Edit the manifest and code
 code plugins/my-plugin
@@ -56,11 +49,14 @@ plugin-marketplace/
 ├── README.md              # This file
 ├── registry.json          # Plugin registry (auto-fetched by VerifyWise)
 ├── plugins/               # Published plugins
-│   ├── plugin-name/       # Plugin source files
-│   └── plugin-name.zip    # Downloadable package
+│   └── .gitkeep           # (empty - plugins coming soon)
 └── templates/             # Development templates (not in registry)
     ├── README.md          # Plugin development guide
-    └── sample-plugin/     # Comprehensive sample plugin
+    ├── template-basic-plugin/
+    ├── template-custom-page/
+    ├── template-iframe-page/
+    ├── template-notification-sender/
+    └── template-webhook-receiver/
 ```
 
 ## Contributing a Plugin
