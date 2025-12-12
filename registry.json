@@ -9,8 +9,12 @@
       "version": "1.1.0",
       "author": "VerifyWise",
       "type": "feature",
-      "tags": ["dashboard", "monitoring", "audit"],
-      "downloadUrl": "https://raw.githubusercontent.com/bluewave-labs/plugin-marketplace/main/plugins/activity-feed"
+      "tags": [
+        "dashboard",
+        "monitoring",
+        "audit"
+      ],
+      "downloadUrl": "https://raw.githubusercontent.com/bluewave-labs/plugin-marketplace/main/plugins/activity-feed.zip"
     },
     {
       "id": "risk-importer",
@@ -19,8 +23,12 @@
       "version": "1.0.0",
       "author": "VerifyWise",
       "type": "feature",
-      "tags": ["import", "data", "bulk"],
-      "downloadUrl": "https://raw.githubusercontent.com/bluewave-labs/plugin-marketplace/main/plugins/risk-importer"
+      "tags": [
+        "import",
+        "data",
+        "bulk"
+      ],
+      "downloadUrl": "https://raw.githubusercontent.com/bluewave-labs/plugin-marketplace/main/plugins/risk-importer.zip"
     }
   ]
 }
