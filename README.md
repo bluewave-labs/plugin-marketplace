@@ -1,104 +1,98 @@
 # VerifyWise Plugin Marketplace
 
-Official plugin registry for [VerifyWise](https://verifywise.ai) - the AI Governance platform.
+This repository contains the plugin marketplace for VerifyWise, including plugin metadata and implementation code.
 
-## Available Plugins
-
-No plugins are currently published. Check back soon or contribute your own!
-
-## Installing Plugins
-
-1. Go to **Settings > Plugins** in your VerifyWise instance
-2. Browse available plugins in the Marketplace tab
-3. Click **Install** on the plugin you want
-4. Configure the plugin settings
-5. Enable the plugin
-
-## Creating Your Own Plugin
-
-See the [`templates`](./templates) directory for plugin development templates:
-
-| Template | Description |
-|----------|-------------|
-| [template-basic-plugin](./templates/template-basic-plugin) | Simple plugin with lifecycle hooks and event handlers |
-| [template-custom-page](./templates/template-custom-page) | Plugin with a custom page in the sidebar |
-| [template-iframe-page](./templates/template-iframe-page) | Embed external content via iframe |
-| [template-notification-sender](./templates/template-notification-sender) | Send notifications to external services |
-| [template-webhook-receiver](./templates/template-webhook-receiver) | Receive and process webhooks |
-
-### Quick Start
-
-```bash
-# Clone this repository
-git clone https://github.com/bluewave-labs/plugin-marketplace.git
-
-# Copy a template to start your plugin
-cp -r templates/template-basic-plugin plugins/my-plugin
-
-# Edit the manifest and code
-code plugins/my-plugin
-
-# Test locally by copying to your VerifyWise installation
-cp -r plugins/my-plugin /path/to/verifywise/Servers/plugins/marketplace/
-```
-
-## Repository Structure
+## Structure
 
 ```
 plugin-marketplace/
-├── README.md              # This file
-├── registry.json          # Plugin registry (auto-fetched by VerifyWise)
-├── plugins/               # Published plugins
-│   └── .gitkeep           # (empty - plugins coming soon)
-└── templates/             # Development templates (not in registry)
-    ├── README.md          # Plugin development guide
-    ├── template-basic-plugin/
-    ├── template-custom-page/
-    ├── template-iframe-page/
-    ├── template-notification-sender/
-    └── template-webhook-receiver/
+├── plugins.json           # Plugin registry with metadata
+├── plugins/              # Plugin implementations
+│   ├── slack/           # Slack plugin
+│   │   ├── index.js     # Entry point
+│   │   ├── package.json # Dependencies
+│   │   └── README.md    # Plugin documentation
+│   └── mlflow/          # MLflow plugin
+│       ├── index.js     # Entry point
+│       ├── package.json # Dependencies
+│       └── README.md    # Plugin documentation
+└── README.md            # This file
 ```
 
-## Contributing a Plugin
+## plugins.json Format
 
-1. Fork this repository
-2. Create your plugin in `plugins/your-plugin-name/`
-3. Add your plugin to `registry.json`
-4. Create a zip file: `cd plugins && zip -r your-plugin-name.zip your-plugin-name/`
-5. Submit a pull request
-
-### Registry Entry Format
+The `plugins.json` file contains metadata for all available plugins:
 
 ```json
 {
-  "id": "your-plugin-name",
-  "name": "Your Plugin Name",
-  "description": "Brief description of what your plugin does",
   "version": "1.0.0",
-  "author": {
-    "name": "Your Name",
-    "url": "https://your-website.com"
-  },
-  "type": "integration|feature|framework|reporting",
-  "tags": ["tag1", "tag2"],
-  "download": "https://raw.githubusercontent.com/bluewave-labs/plugin-marketplace/main/plugins/your-plugin-name.zip",
-  "checksum": "sha256:...",
-  "compatibility": {
-    "minVersion": "1.6.0"
-  },
-  "permissions": ["events:listen", "database:read"]
+  "plugins": [
+    {
+      "key": "unique-plugin-key",
+      "name": "Plugin Name",
+      "description": "Short description",
+      "longDescription": "Detailed description",
+      "version": "1.0.0",
+      "author": "Author Name",
+      "category": "category_name",
+      "iconUrl": "/path/to/icon.svg",
+      "documentationUrl": "https://docs.example.com",
+      "features": [...],
+      "tags": [...],
+      "pluginPath": "plugins/plugin-folder",
+      "entryPoint": "index.js",
+      "dependencies": {...}
+    }
+  ],
+  "categories": [...]
 }
 ```
 
-## Plugin Types
+## Plugin Implementation
 
-| Type | Description |
-|------|-------------|
-| `integration` | Connect with external services (Slack, Jira, etc.) |
-| `feature` | Add new functionality (audit trail, analytics) |
-| `framework` | Compliance frameworks (GDPR, ISO 27001, SOC2) |
-| `reporting` | Report generation and export |
+Each plugin must export the following interface:
 
-## License
+```javascript
+module.exports = {
+  // Called when plugin is installed
+  install: async (userId, tenantId, config) => {},
 
-MIT
+  // Called when plugin is uninstalled
+  uninstall: async (userId, tenantId) => {},
+
+  // Called to validate configuration
+  validateConfig: (config) => {},
+
+  // Plugin-specific methods
+  // ... (varies by plugin)
+};
+```
+
+## Adding a New Plugin
+
+1. Add plugin metadata to `plugins.json`
+2. Create plugin folder in `plugins/`
+3. Implement required exports in `index.js`
+4. Add `package.json` with dependencies
+5. Document in plugin's `README.md`
+
+## Development vs Production
+
+### Development (Local)
+VerifyWise reads `plugins.json` directly from this folder.
+
+### Production (Git Repository)
+VerifyWise fetches `plugins.json` from a remote Git repository URL.
+
+Configure via environment variable:
+```bash
+PLUGIN_MARKETPLACE_URL=https://raw.githubusercontent.com/org/plugin-marketplace/main/plugins.json
+```
+
+## Plugin Categories
+
+- `communication` - Team communication and notifications
+- `ml_ops` - Machine learning operations and model management
+- `version_control` - Version control system integrations
+- `monitoring` - System and application monitoring
+- `security` - Security and compliance tools
