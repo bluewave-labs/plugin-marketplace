@@ -44,6 +44,16 @@
       "entryPoint": "index.ts",
       "dependencies": {
         "@slack/web-api": "^6.9.0"
+      },
+      "ui": {
+        "bundleUrl": "/plugins/slack/ui/dist/index.esm.js",
+        "slots": [
+          {
+            "slotId": "page.plugin.config",
+            "componentName": "SlackConfiguration",
+            "renderType": "card"
+          }
+        ]
       }
     },
     {
@@ -94,6 +104,25 @@
       "entryPoint": "index.ts",
       "dependencies": {
         "axios": "^1.6.0"
+      },
+      "ui": {
+        "bundleUrl": "/plugins/mlflow/ui/dist/index.esm.js",
+        "slots": [
+          {
+            "slotId": "page.models.tabs",
+            "componentName": "MLFlowTab",
+            "renderType": "tab",
+            "props": {
+              "label": "MLFlow Data",
+              "icon": "Database"
+            }
+          },
+          {
+            "slotId": "page.plugin.config",
+            "componentName": "MLFlowConfiguration",
+            "renderType": "card"
+          }
+        ]
       }
     },
     {
@@ -143,6 +172,26 @@
       "entryPoint": "index.ts",
       "dependencies": {
         "exceljs": "^4.4.0"
+      },
+      "ui": {
+        "bundleUrl": "/plugins/risk-import/ui/dist/index.esm.js",
+        "slots": [
+          {
+            "slotId": "page.risks.actions",
+            "componentName": "RiskImportMenuItem",
+            "renderType": "menuitem",
+            "props": {
+              "label": "Import from Excel",
+              "icon": "FileSpreadsheet"
+            }
+          },
+          {
+            "slotId": "page.risks.actions",
+            "componentName": "RiskImportModal",
+            "renderType": "modal",
+            "trigger": "RiskImportMenuItem"
+          }
+        ]
       }
     }
   ],
