@@ -23,8 +23,10 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  MessageSquare,
+  X,
 } from "lucide-react";
-import { colors, typography, borderRadius, tableStyles } from "./theme";
+import { colors, typography, borderRadius, tableStyles, shadows } from "./theme";
 
 interface SlackWorkspace {
   id: number;
@@ -284,51 +286,110 @@ export const SlackConfiguration: React.FC<SlackConfigurationProps> = ({
                         {workspace.created_at ? new Date(workspace.created_at).toLocaleDateString() : "-"}
                       </TableCell>
                       <TableCell sx={{ ...tableStyles.cell }}>
-                        {workspace.is_active ? "Yes" : "No"}
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            px: 1,
+                            py: 0.25,
+                            borderRadius: borderRadius.full,
+                            fontSize: "11px",
+                            fontWeight: 500,
+                            backgroundColor: workspace.is_active ? colors.successLight : "rgba(107, 114, 128, 0.1)",
+                            color: workspace.is_active ? "#16a34a" : colors.textTertiary,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              backgroundColor: workspace.is_active ? "#16a34a" : colors.textTertiary,
+                            }}
+                          />
+                          {workspace.is_active ? "Active" : "Inactive"}
+                        </Box>
                       </TableCell>
                       <TableCell sx={{ ...tableStyles.cell }}>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            variant="outlined"
+                        <Stack direction="row" spacing={0.75}>
+                          <Box
                             onClick={() => handleToggleWorkspace(workspace.id, workspace.is_active)}
                             sx={{
-                              minWidth: "auto",
-                              px: 1,
-                              fontSize: typography.sizes.sm,
-                              textTransform: "none",
-                              borderColor: colors.border,
-                              color: colors.textSecondary,
+                              width: 30,
+                              height: 30,
+                              borderRadius: borderRadius.sm,
+                              border: `1px solid ${colors.border}`,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              color: workspace.is_active ? colors.primary : colors.textTertiary,
+                              backgroundColor: colors.background,
+                              transition: "all 0.15s ease",
+                              "&:hover": {
+                                borderColor: colors.primary,
+                                backgroundColor: colors.primaryLight,
+                                color: colors.primary,
+                              },
                             }}
                             title={workspace.is_active ? "Disable" : "Enable"}
                           >
                             {workspace.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            color="error"
+                          </Box>
+                          <Box
                             onClick={() => handleDisconnectWorkspace(workspace.id)}
                             sx={{
-                              minWidth: "auto",
-                              px: 1,
-                              fontSize: typography.sizes.sm,
-                              textTransform: "none",
+                              width: 30,
+                              height: 30,
+                              borderRadius: borderRadius.sm,
+                              border: `1px solid ${colors.border}`,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              color: colors.textTertiary,
+                              backgroundColor: colors.background,
+                              transition: "all 0.15s ease",
+                              "&:hover": {
+                                borderColor: colors.error,
+                                backgroundColor: colors.errorLight,
+                                color: colors.error,
+                              },
                             }}
                             title="Delete"
                           >
-                            <Trash2 size={16} />
-                          </Button>
+                            <Trash2 size={14} />
+                          </Box>
                         </Stack>
                       </TableCell>
                     </TableRow>
                   ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                    <Typography fontSize={13} color="text.secondary">
-                      No workspaces connected yet. Click "Add to Slack" above to connect.
-                    </Typography>
+                  <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: "50%",
+                          backgroundColor: colors.backgroundSecondary,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <MessageSquare size={24} color={colors.textTertiary} />
+                      </Box>
+                      <Typography sx={{ fontSize: "13px", color: colors.textSecondary, fontWeight: 500 }}>
+                        No workspaces connected
+                      </Typography>
+                      <Typography sx={{ fontSize: "12px", color: colors.textTertiary }}>
+                        Click "Add to Slack" above to connect your first workspace.
+                      </Typography>
+                    </Box>
                   </TableCell>
                 </TableRow>
               )}
@@ -373,75 +434,148 @@ export const SlackConfiguration: React.FC<SlackConfigurationProps> = ({
           <Box
             sx={{
               backgroundColor: colors.background,
-              borderRadius: borderRadius.md,
-              p: 3,
-              maxWidth: "600px",
+              borderRadius: borderRadius.lg,
+              maxWidth: "500px",
               width: "90%",
+              boxShadow: shadows.lg,
+              overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <Typography variant="h6" fontWeight={600} fontSize={16} sx={{ mb: 2 }}>
-              Notification Routing
-            </Typography>
-            <Typography variant="body2" color="text.secondary" fontSize={13} sx={{ mb: 3 }}>
-              Configure which notification types go to which Slack channels.
-            </Typography>
-
-            {/* Global Routing Configuration */}
-            <Stack spacing={2} sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" fontWeight={500} fontSize={13}>
-                Apply to all workspaces:
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  multiple
-                  value={globalRoutingTypes}
-                  onChange={(e) => {
-                    const value = typeof e.target.value === 'string' ?
-                      e.target.value.split(',') :
-                      e.target.value;
-                    setGlobalRoutingTypes(value);
+            {/* Modal Header */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                p: 2.5,
+                borderBottom: `1px solid ${colors.borderLight}`,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: borderRadius.sm,
+                    backgroundColor: colors.primaryLight,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
-                  renderValue={(selected) =>
-                    (selected as string[]).length === 0
-                      ? "Select notification types..."
-                      : `${(selected as string[]).length} type(s) selected`
-                  }
-                  displayEmpty
-                  sx={{ fontSize: "13px" }}
                 >
-                  {[
-                    "Membership and roles",
-                    "Projects and organizations",
-                    "Policy reminders and status",
-                    "Evidence and task alerts",
-                    "Control or policy changes",
-                  ].map((option) => (
-                    <MenuItem key={option} value={option} sx={{ fontSize: "13px" }}>
-                      <Checkbox
-                        checked={globalRoutingTypes.indexOf(option) > -1}
-                        sx={{
-                          color: colors.primary,
-                          "&.Mui-checked": { color: colors.primary },
-                        }}
-                      />
-                      <Typography fontSize={13}>{option}</Typography>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
+                  <SlidersHorizontal size={16} color={colors.primary} />
+                </Box>
+                <Typography sx={{ fontWeight: 600, fontSize: "15px", color: colors.textPrimary }}>
+                  Notification Routing
+                </Typography>
+              </Box>
+              <Box
+                onClick={() => setIsRoutingModalOpen(false)}
+                sx={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: borderRadius.sm,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: colors.textTertiary,
+                  "&:hover": { backgroundColor: colors.backgroundHover },
+                }}
+              >
+                <X size={16} />
+              </Box>
+            </Box>
 
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
+            {/* Modal Body */}
+            <Box sx={{ p: 2.5 }}>
+              <Typography sx={{ fontSize: "13px", color: colors.textTertiary, mb: 2.5 }}>
+                Configure which notification types go to which Slack channels.
+              </Typography>
+
+              {/* Global Routing Configuration */}
+              <Stack spacing={1.5}>
+                <Typography sx={{ fontSize: "13px", fontWeight: 500, color: colors.textSecondary }}>
+                  Apply to all workspaces:
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    multiple
+                    value={globalRoutingTypes}
+                    onChange={(e) => {
+                      const value = typeof e.target.value === 'string' ?
+                        e.target.value.split(',') :
+                        e.target.value;
+                      setGlobalRoutingTypes(value);
+                    }}
+                    renderValue={(selected) =>
+                      (selected as string[]).length === 0
+                        ? "Select notification types..."
+                        : `${(selected as string[]).length} type(s) selected`
+                    }
+                    displayEmpty
+                    sx={{
+                      fontSize: "13px",
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: colors.border,
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: colors.primary,
+                      },
+                    }}
+                  >
+                    {[
+                      "Membership and roles",
+                      "Projects and organizations",
+                      "Policy reminders and status",
+                      "Evidence and task alerts",
+                      "Control or policy changes",
+                    ].map((option) => (
+                      <MenuItem key={option} value={option} sx={{ fontSize: "13px" }}>
+                        <Checkbox
+                          checked={globalRoutingTypes.indexOf(option) > -1}
+                          size="small"
+                          sx={{
+                            color: colors.primary,
+                            "&.Mui-checked": { color: colors.primary },
+                          }}
+                        />
+                        <Typography sx={{ fontSize: "13px" }}>{option}</Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Box>
+
+            {/* Modal Footer */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 1.5,
+                p: 2.5,
+                borderTop: `1px solid ${colors.borderLight}`,
+                backgroundColor: colors.backgroundSecondary,
+              }}
+            >
               <Button
                 variant="outlined"
+                size="small"
                 onClick={() => setIsRoutingModalOpen(false)}
-                sx={{ textTransform: "none", fontSize: typography.sizes.md }}
+                sx={{
+                  textTransform: "none",
+                  fontSize: "13px",
+                  borderColor: colors.border,
+                  color: colors.textSecondary,
+                }}
               >
                 Cancel
               </Button>
               <Button
                 variant="contained"
+                size="small"
                 onClick={() => {
                   handleApplyGlobalRouting();
                   setIsRoutingModalOpen(false);
@@ -450,13 +584,13 @@ export const SlackConfiguration: React.FC<SlackConfigurationProps> = ({
                 sx={{
                   backgroundColor: colors.primary,
                   textTransform: "none",
-                  fontSize: typography.sizes.md,
+                  fontSize: "13px",
                   "&:hover": { backgroundColor: colors.primaryHover },
                 }}
               >
                 Save Changes
               </Button>
-            </Stack>
+            </Box>
           </Box>
         </Box>
       )}
