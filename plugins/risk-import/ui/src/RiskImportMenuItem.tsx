@@ -42,14 +42,17 @@ export const RiskImportMenuItem: React.FC<RiskImportMenuItemProps> = ({
       onKeyDown={handleKeyDown}
       sx={{
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        gap: 2,
+        justifyContent: "center",
+        textAlign: "center",
         p: 2,
         cursor: "pointer",
         borderRadius: "8px",
         border: "1px solid #d0d5dd",
         backgroundColor: "white",
         transition: "all 0.2s ease",
+        minHeight: "180px",
         "&:hover": {
           backgroundColor: "rgba(19, 113, 91, 0.04)",
           borderColor: "#13715B",
@@ -62,38 +65,37 @@ export const RiskImportMenuItem: React.FC<RiskImportMenuItemProps> = ({
     >
       <Box
         sx={{
-          width: 40,
-          height: 40,
+          width: 48,
+          height: 48,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "rgba(16, 185, 129, 0.1)",
           borderRadius: "8px",
+          mb: 1.5,
         }}
       >
-        <FileSpreadsheet size={24} color="#10b981" />
+        <FileSpreadsheet size={28} color="#10b981" />
       </Box>
-      <Box>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 600,
-            fontSize: "13px",
-            color: "#344054",
-          }}
-        >
-          Import from Excel
-        </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            fontSize: "12px",
-            color: "#667085",
-          }}
-        >
-          Bulk import risks from Excel file
-        </Typography>
-      </Box>
+      <Typography
+        sx={{
+          fontWeight: 600,
+          fontSize: "13px",
+          color: "#344054",
+          mb: 0.5,
+        }}
+      >
+        Import from Excel
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: "12px",
+          color: "#667085",
+          lineHeight: 1.4,
+        }}
+      >
+        Bulk import risks from Excel file
+      </Typography>
     </Box>
   );
 };
