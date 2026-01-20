@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Box,
   Typography,
@@ -19,9 +19,16 @@ import {
   TableFooter,
   TablePagination,
   Chip,
+  Popover,
+  Stack,
+  Select,
+  MenuItem,
+  ToggleButton,
+  ToggleButtonGroup,
+  FormControl,
 } from "@mui/material";
 import type { GridProps } from "@mui/material";
-import { RefreshCw, XCircle, Eye, ChevronsUpDown } from "lucide-react";
+import { RefreshCw, XCircle, Eye, ChevronsUpDown, X, Layers } from "lucide-react";
 import { colors, typography, borderRadius, cardStyles, tableStyles, chipStyles, buttonStyles, modalStyles } from "./theme";
 
 interface SelectorVerticalProps {
@@ -31,6 +38,315 @@ interface SelectorVerticalProps {
 
 const SelectorVertical = (props: SelectorVerticalProps) => <ChevronsUpDown size={16} {...props} />;
 
+// ==================== GroupBy Types ====================
+interface GroupByOption {
+  id: string;
+  label: string;
+}
+
+interface GroupedData<T> {
+  group: string;
+  items: T[];
+}
+
+// ==================== GroupBy Hooks ====================
+function useTableGrouping<T>({
+  data,
+  groupByField,
+  sortOrder,
+  getGroupKey,
+}: {
+  data: T[];
+  groupByField: string | null;
+  sortOrder: 'asc' | 'desc';
+  getGroupKey: (item: T, field: string) => string | string[];
+}): GroupedData<T>[] | null {
+  return useMemo(() => {
+    if (!groupByField) return null;
+
+    const groups: Record<string, T[]> = {};
+
+    data.forEach((item) => {
+      const keys = getGroupKey(item, groupByField);
+      const groupKeys = Array.isArray(keys) ? keys : [keys];
+
+      groupKeys.forEach((groupKey) => {
+        if (!groups[groupKey]) {
+          groups[groupKey] = [];
+        }
+        groups[groupKey].push(item);
+      });
+    });
+
+    const sortedGroupKeys = Object.keys(groups).sort((a, b) => {
+      if (sortOrder === 'asc') {
+        return a.localeCompare(b);
+      } else {
+        return b.localeCompare(a);
+      }
+    });
+
+    return sortedGroupKeys.map((key) => ({
+      group: key,
+      items: groups[key],
+    }));
+  }, [data, groupByField, sortOrder, getGroupKey]);
+}
+
+function useGroupByState(defaultGroupBy?: string, defaultSortOrder: 'asc' | 'desc' = 'asc') {
+  const [groupBy, setGroupBy] = useState<string | null>(defaultGroupBy || null);
+  const [groupSortOrder, setGroupSortOrder] = useState<'asc' | 'desc'>(defaultSortOrder);
+
+  const handleGroupChange = (field: string | null, sortOrder: 'asc' | 'desc') => {
+    setGroupBy(field);
+    setGroupSortOrder(sortOrder);
+  };
+
+  return {
+    groupBy,
+    groupSortOrder,
+    handleGroupChange,
+  };
+}
+
+// ==================== GroupBy Components ====================
+const GroupBadge: React.FC<{ count: number }> = ({ count }) => (
+  <Box
+    sx={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '18px',
+      height: '18px',
+      borderRadius: '50%',
+      backgroundColor: '#dcfce7',
+      color: '#166534',
+      fontSize: '11px',
+      fontWeight: 600,
+      marginLeft: '6px',
+    }}
+  >
+    {count}
+  </Box>
+);
+
+interface GroupByProps {
+  options: GroupByOption[];
+  onGroupChange: (groupBy: string | null, sortOrder: 'asc' | 'desc') => void;
+}
+
+const GroupBy: React.FC<GroupByProps> = ({ options, onGroupChange }) => {
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const scrollParentRef = useRef<HTMLElement | null>(null);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+    let parent = event.currentTarget.parentElement;
+    while (parent) {
+      const overflow = window.getComputedStyle(parent).overflow;
+      if (overflow === 'auto' || overflow === 'scroll' || parent === document.body) {
+        scrollParentRef.current = parent;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (anchorEl) {
+        handleClose();
+      }
+    };
+
+    if (anchorEl && scrollParentRef.current) {
+      scrollParentRef.current.addEventListener('scroll', handleScroll);
+      window.addEventListener('scroll', handleScroll, true);
+    }
+
+    return () => {
+      if (scrollParentRef.current) {
+        scrollParentRef.current.removeEventListener('scroll', handleScroll);
+      }
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [anchorEl]);
+
+  const handleGroupFieldChange = (event: any) => {
+    const value = event.target.value;
+    setSelectedGroup(value);
+    if (value === '') {
+      onGroupChange(null, 'asc');
+      setSortOrder('asc');
+    } else {
+      onGroupChange(value, sortOrder);
+    }
+  };
+
+  const handleSortChange = (_: any, value: string | null) => {
+    if (value) {
+      const order = value as 'asc' | 'desc';
+      setSortOrder(order);
+      if (selectedGroup) {
+        onGroupChange(selectedGroup, order);
+      }
+    }
+  };
+
+  const handleClear = () => {
+    setSelectedGroup('');
+    setSortOrder('asc');
+    onGroupChange(null, 'asc');
+    handleClose();
+  };
+
+  const open = Boolean(anchorEl);
+
+  return (
+    <>
+      <Button
+        onClick={handleClick}
+        variant="outlined"
+        sx={{
+          fontSize: '13px',
+          fontWeight: 500,
+          padding: '6px 12px',
+          textTransform: 'none',
+          color: '#374151',
+          borderColor: '#d0d5dd',
+          height: '34px',
+          minWidth: selectedGroup ? '110px' : '80px',
+          backgroundColor: open ? '#f0fdf4' : 'transparent',
+          '&:hover': {
+            borderColor: '#98a2b3',
+            backgroundColor: '#f0fdf4',
+          },
+        }}
+      >
+        <Layers size={16} color="#10b981" style={{ marginRight: '6px' }} />
+        Group
+        {selectedGroup && <GroupBadge count={1} />}
+      </Button>
+
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{
+          paper: {
+            sx: {
+              marginTop: '8px',
+              padding: '16px',
+              minWidth: '400px',
+              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+              borderRadius: '8px',
+            }
+          }
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              GROUP BY
+            </Typography>
+            <Box
+              onClick={selectedGroup ? handleClear : handleClose}
+              sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', '&:hover': { opacity: 0.7 } }}
+            >
+              <X size={16} color="#6b7280" />
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={2} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <Select
+                value={selectedGroup}
+                onChange={handleGroupFieldChange}
+                displayEmpty
+                sx={{ fontSize: '13px' }}
+              >
+                <MenuItem value="">Select field</MenuItem>
+                {options.map(option => (
+                  <MenuItem key={option.id} value={option.id}>{option.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <ToggleButtonGroup
+              value={sortOrder}
+              exclusive
+              onChange={handleSortChange}
+              size="small"
+            >
+              <ToggleButton value="asc" sx={{ fontSize: '12px', textTransform: 'none', px: 2 }}>
+                A → Z
+              </ToggleButton>
+              <ToggleButton value="desc" sx={{ fontSize: '12px', textTransform: 'none', px: 2 }}>
+                Z → A
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+        </Stack>
+      </Popover>
+    </>
+  );
+};
+
+// ==================== GroupedTableView Component ====================
+interface GroupedTableViewProps<T> {
+  groupedData: GroupedData<T>[] | null;
+  ungroupedData: T[];
+  renderTable: (data: T[], options?: { hidePagination?: boolean }) => React.ReactNode;
+}
+
+function GroupedTableView<T>({
+  groupedData,
+  ungroupedData,
+  renderTable,
+}: GroupedTableViewProps<T>): React.ReactElement {
+  if (groupedData) {
+    if (groupedData.length === 0) {
+      return <>{renderTable([])}</>;
+    }
+
+    return (
+      <Stack spacing={0}>
+        {groupedData.map(({ group, items }, index) => (
+          <Box key={group} sx={{ marginTop: index === 0 ? 0 : '24px' }}>
+            <Typography
+              component="div"
+              sx={{
+                fontSize: '15px',
+                fontWeight: 600,
+                color: '#374151',
+                marginBottom: '4px',
+                paddingLeft: '4px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {group}
+              <GroupBadge count={items.length} />
+            </Typography>
+            {renderTable(items, { hidePagination: true })}
+          </Box>
+        ))}
+      </Stack>
+    );
+  }
+
+  return <>{renderTable(ungroupedData)}</>;
+}
+
+// ==================== MLFlow Types ====================
 interface MLFlowModel {
   id: number;
   model_name: string;
@@ -56,6 +372,7 @@ interface MLFlowTabProps {
   };
 }
 
+// ==================== Main Component ====================
 export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
   const [loading, setLoading] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
@@ -63,6 +380,9 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
   const [mlflowData, setMlflowData] = useState<MLFlowModel[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // GroupBy state
+  const { groupBy, groupSortOrder, handleGroupChange } = useGroupByState();
 
   // Default API services if not provided
   const api = apiServices || {
@@ -119,14 +439,11 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
       const response = await api.get("/plugins/mlflow/models");
 
       if (response.data?.data) {
-        // Handle plugin API response format: { message: "OK", data: { configured: boolean, models: [] } }
         const pluginData = response.data.data;
         if ('models' in pluginData && Array.isArray(pluginData.models)) {
-          // Check various states
           if (!pluginData.configured) {
             setWarning("Configure the MLFlow plugin to start syncing live data.");
           } else if (pluginData.connected === false) {
-            // MLFlow is configured but server is not reachable
             setWarning(pluginData.message || "MLFlow server is not reachable.");
           } else if (pluginData.error) {
             setWarning(pluginData.error);
@@ -139,7 +456,6 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
         setMlflowData([]);
       }
     } catch {
-      // Only show warning for actual errors - backend should return 200 for most cases now
       setWarning("Unable to reach the MLFlow backend.");
       setMlflowData([]);
     } finally {
@@ -156,18 +472,11 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
     setWarning(null);
 
     try {
-      // Call sync endpoint to fetch fresh data from MLflow server
       await api.post("/plugins/mlflow/sync");
-
-      // Then fetch the updated data from database
       await fetchMLFlowData();
     } catch (error: any) {
       console.error("Error syncing MLflow data:", error);
-
-      // If sync fails, still try to fetch existing data
       await fetchMLFlowData();
-
-      // Show warning if sync failed but data was fetched
       if (error.response?.data?.message) {
         setWarning(`Sync failed: ${error.response.data.message}`);
       } else {
@@ -202,9 +511,29 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
     return `${start} - ${end}`;
   }, [page, rowsPerPage, mlflowData.length]);
 
-  const displayData = mlflowData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  // Define how to get the group key for each MLFlow model
+  const getMLFlowGroupKey = useCallback((model: MLFlowModel, field: string): string | string[] => {
+    switch (field) {
+      case 'lifecycle_stage':
+        return model.lifecycle_stage || 'Unknown';
+      case 'experiment':
+        return model.experiment_name || model.experiment_id || 'Unknown Experiment';
+      case 'model_name':
+        return model.model_name || 'Unknown Model';
+      default:
+        return 'Other';
+    }
+  }, []);
 
-  if (loading) {
+  // Apply grouping to mlflow data
+  const groupedMLFlowData = useTableGrouping({
+    data: mlflowData,
+    groupByField: groupBy,
+    sortOrder: groupSortOrder,
+    getGroupKey: getMLFlowGroupKey,
+  });
+
+  if (loading && mlflowData.length === 0) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "400px" }}>
         <CircularProgress />
@@ -217,12 +546,20 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
     <Box sx={{ p: 3, maxWidth: "100%", overflowX: "hidden" }}>
       {/* Header Section */}
       {warning && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
+        <Alert severity="warning" sx={{ mb: 8 }}>
           {warning}
         </Alert>
       )}
 
       <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 2, width: "100%" }}>
+        <GroupBy
+          options={[
+            { id: 'lifecycle_stage', label: 'Lifecycle stage' },
+            { id: 'experiment', label: 'Experiment' },
+            { id: 'model_name', label: 'Model name' },
+          ]}
+          onGroupChange={handleGroupChange}
+        />
         <Button
           variant="outlined"
           startIcon={<RefreshCw size={16} />}
@@ -268,101 +605,114 @@ export const MLFlowTab: React.FC<MLFlowTabProps> = ({ apiServices }) => {
       </Box>
 
       {/* Table Section */}
-      <Box sx={{ mt: 4, mb: 2 }}>
+      <Box sx={{ mt: 8, mb: 2 }}>
         {mlflowData.length === 0 && !loading ? (
           <Box sx={{ textAlign: "center", py: 4, color: colors.textTertiary }}>
             <Typography sx={{ fontSize: typography.sizes.md }}>No MLFlow runs have been synced yet. Configure the integration and click Sync to pull the latest models.</Typography>
           </Box>
         ) : (
-          <TableContainer sx={{ border: `1px solid ${colors.border}`, borderRadius: borderRadius.md }}>
-            <Table sx={{ minWidth: 800 }}>
-              <TableHead sx={{ backgroundColor: colors.backgroundSecondary }}>
-                <TableRow>
-                  {["Model Name", "Version", "Status", "Created", "Last Updated", "Description", "Actions"].map((header) => (
-                    <TableCell
-                      key={header}
-                      sx={tableStyles.header}
-                    >
-                      {header}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {displayData.map((model) => (
-                  <TableRow
-                    key={model.id}
-                    sx={{ ...tableStyles.row, cursor: "pointer" }}
-                    onClick={() => handleModelClick(model)}
-                  >
-                    <TableCell sx={tableStyles.cell}>
-                      {model.model_name}
-                    </TableCell>
-                    <TableCell sx={tableStyles.cell}>
-                      {model.version}
-                    </TableCell>
-                    <TableCell sx={tableStyles.cell}>
-                      <Chip
-                        label={model.lifecycle_stage}
-                        size="small"
-                        sx={{
-                          ...chipStyles.base,
-                          ...(model.lifecycle_stage.toLowerCase() === "production"
-                            ? chipStyles.success
-                            : model.lifecycle_stage.toLowerCase() === "staging"
-                            ? chipStyles.warning
-                            : chipStyles.neutral),
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={tableStyles.cell}>
-                      {formatDate(model.creation_timestamp)}
-                    </TableCell>
-                    <TableCell sx={tableStyles.cell}>
-                      {formatDate(model.last_updated_timestamp)}
-                    </TableCell>
-                    <TableCell sx={{ ...tableStyles.cell, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {model.description || "No description"}
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Tooltip title="View details">
-                          <IconButton size="small" sx={{ mr: 1 }}>
-                            <Eye size={16} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              {mlflowData.length > 0 && (
-                <TableFooter>
-                  <TableRow>
-                    <TableCell sx={{ fontSize: typography.sizes.md, color: colors.textTertiary }}>
-                      Showing {getRange} of {mlflowData.length} model(s)
-                    </TableCell>
-                    <TablePagination
-                      count={mlflowData.length}
-                      page={page}
-                      onPageChange={handleChangePage}
-                      rowsPerPage={rowsPerPage}
-                      rowsPerPageOptions={[5, 10, 15, 25]}
-                      onRowsPerPageChange={handleRowsPerPageChange}
-                      labelRowsPerPage="Rows per page"
-                      labelDisplayedRows={({ page, count }) => `Page ${page + 1} of ${Math.max(1, Math.ceil(count / rowsPerPage))}`}
-                      slotProps={{
-                        select: {
-                          IconComponent: SelectorVertical,
-                        },
-                      }}
-                      sx={{ fontSize: typography.sizes.md }}
-                    />
-                  </TableRow>
-                </TableFooter>
-              )}
-            </Table>
-          </TableContainer>
+          <GroupedTableView
+            groupedData={groupedMLFlowData}
+            ungroupedData={mlflowData}
+            renderTable={(data, options) => {
+              const hidePagination = options?.hidePagination || false;
+              const displayData = hidePagination
+                ? data
+                : data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+              return (
+                <TableContainer sx={{ border: `1px solid ${colors.border}`, borderRadius: borderRadius.md }}>
+                  <Table sx={{ minWidth: 800 }}>
+                    <TableHead sx={{ backgroundColor: colors.backgroundSecondary }}>
+                      <TableRow>
+                        {["Model Name", "Version", "Status", "Created", "Last Updated", "Description", "Actions"].map((header) => (
+                          <TableCell
+                            key={header}
+                            sx={tableStyles.header}
+                          >
+                            {header}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {displayData.map((model) => (
+                        <TableRow
+                          key={model.id}
+                          sx={{ ...tableStyles.row, cursor: "pointer" }}
+                          onClick={() => handleModelClick(model)}
+                        >
+                          <TableCell sx={tableStyles.cell}>
+                            {model.model_name}
+                          </TableCell>
+                          <TableCell sx={tableStyles.cell}>
+                            {model.version}
+                          </TableCell>
+                          <TableCell sx={tableStyles.cell}>
+                            <Chip
+                              label={model.lifecycle_stage}
+                              size="small"
+                              sx={{
+                                ...chipStyles.base,
+                                ...(model.lifecycle_stage.toLowerCase() === "production"
+                                  ? chipStyles.success
+                                  : model.lifecycle_stage.toLowerCase() === "staging"
+                                  ? chipStyles.warning
+                                  : chipStyles.neutral),
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={tableStyles.cell}>
+                            {formatDate(model.creation_timestamp)}
+                          </TableCell>
+                          <TableCell sx={tableStyles.cell}>
+                            {formatDate(model.last_updated_timestamp)}
+                          </TableCell>
+                          <TableCell sx={{ ...tableStyles.cell, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {model.description || "No description"}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Tooltip title="View details">
+                                <IconButton size="small" sx={{ mr: 1 }}>
+                                  <Eye size={16} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    {data.length > 0 && !hidePagination && (
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell sx={{ fontSize: typography.sizes.md, color: colors.textTertiary }}>
+                            Showing {getRange} of {data.length} model(s)
+                          </TableCell>
+                          <TablePagination
+                            count={data.length}
+                            page={page}
+                            onPageChange={handleChangePage}
+                            rowsPerPage={rowsPerPage}
+                            rowsPerPageOptions={[5, 10, 15, 25]}
+                            onRowsPerPageChange={handleRowsPerPageChange}
+                            labelRowsPerPage="Rows per page"
+                            labelDisplayedRows={({ page, count }) => `Page ${page + 1} of ${Math.max(1, Math.ceil(count / rowsPerPage))}`}
+                            slotProps={{
+                              select: {
+                                IconComponent: SelectorVertical,
+                              },
+                            }}
+                            sx={{ fontSize: typography.sizes.md }}
+                          />
+                        </TableRow>
+                      </TableFooter>
+                    )}
+                  </Table>
+                </TableContainer>
+              );
+            }}
+          />
         )}
       </Box>
 
