@@ -405,39 +405,39 @@ export const RiskImportModal: React.FC<RiskImportModalProps> = ({
         </Card>
 
         {/* Step 3: Import */}
-        {excelData.length > 0 && (
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Step 3: Import Risks
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Review the preview above and click Import to create the risks.
-              </Typography>
+        <Card sx={{ opacity: excelData.length > 0 ? 1 : 0.5 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2, color: excelData.length > 0 ? "inherit" : "text.disabled" }}>
+              Step 3: Import Risks
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2, color: excelData.length > 0 ? "text.secondary" : "text.disabled" }}>
+              {excelData.length > 0
+                ? "Review the preview above and click Import to create the risks."
+                : "Upload an Excel file first to enable import."}
+            </Typography>
 
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <Button
-                  variant="contained"
-                  onClick={handleImport}
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckCircle size={16} />}
-                  sx={{
-                    backgroundColor: "#13715B",
-                    "&:hover": {
-                      backgroundColor: "#0f5a47",
-                    },
-                  }}
-                >
-                  {loading ? "Importing..." : "Import Risks"}
-                </Button>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Button
+                variant="contained"
+                onClick={handleImport}
+                disabled={loading || excelData.length === 0}
+                startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <CheckCircle size={16} />}
+                sx={{
+                  backgroundColor: "#13715B",
+                  "&:hover": {
+                    backgroundColor: "#0f5a47",
+                  },
+                }}
+              >
+                {loading ? "Importing..." : "Import Risks"}
+              </Button>
 
-                <Button variant="outlined" onClick={handleReset} disabled={loading}>
-                  Reset
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        )}
+              <Button variant="outlined" onClick={handleReset} disabled={loading || excelData.length === 0}>
+                Reset
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
