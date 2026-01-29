@@ -235,36 +235,9 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
     );
   }
 
-  // If no custom frameworks, render the built-in toggle + content
+  // If no custom frameworks, render the default children (built-in toggle + content)
   if (customFrameworks.length === 0) {
-    // If children provided (backward compatibility), use them
-    if (children) {
-      return <>{children}</>;
-    }
-    // Otherwise render built-in toggle and content using props
-    return (
-      <Stack spacing={3}>
-        {project && builtInFrameworks.length > 0 && (
-          <Box data-joyride-id="framework-toggle" sx={toggleContainerStyle(34)}>
-            {builtInFrameworks.map((framework, index) => (
-              <Box
-                key={framework.id}
-                onClick={() => onBuiltInFrameworkSelect(index)}
-                sx={{
-                  ...toggleTabStyle,
-                  bgcolor: selectedBuiltInFramework === index ? "background.paper" : "transparent",
-                  border: selectedBuiltInFramework === index ? "1px solid rgba(0, 0, 0, 0.08)" : "none",
-                  borderRadius: "4px",
-                }}
-              >
-                {framework.name}
-              </Box>
-            ))}
-          </Box>
-        )}
-        {renderBuiltInContent()}
-      </Stack>
-    );
+    return <>{children}</>;
   }
 
   const currentCustomFramework = customFrameworks.find(
