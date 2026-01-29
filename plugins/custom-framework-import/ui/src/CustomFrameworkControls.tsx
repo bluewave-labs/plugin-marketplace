@@ -1,25 +1,19 @@
 /**
  * Custom Framework Controls
  *
- * Renders custom frameworks section in the Controls and Requirements tab.
- * This component is injected via PluginSlot into the core app's framework controls UI.
- * It handles its own state and displays custom frameworks with a toggle selector.
+ * Renders a combined framework toggle that includes both built-in and custom frameworks.
+ * This component takes over the entire Controls tab toggle section when custom frameworks exist.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
-  Typography,
-  Divider,
-  Chip,
   CircularProgress,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
+  Chip,
 } from "@mui/material";
-import { FileJson } from "lucide-react";
 import { CustomFrameworkViewer } from "./CustomFrameworkViewer";
-import { colors, borderColors, fontSizes } from "./theme";
+import { colors } from "./theme";
 
 interface CustomFramework {
   id: number;
@@ -33,6 +27,12 @@ interface CustomFramework {
   is_organizational: boolean;
 }
 
+interface BuiltInFramework {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 interface Project {
   id: number;
   project_title: string;
@@ -41,7 +41,12 @@ interface Project {
 
 interface CustomFrameworkControlsProps {
   project: Project;
+  builtInFrameworks: BuiltInFramework[];
+  selectedBuiltInFramework: number;
+  onBuiltInFrameworkSelect: (index: number) => void;
+  renderBuiltInContent: () => React.ReactNode;
   onRefresh?: () => void;
+  children?: React.ReactNode;
   apiServices?: {
     get: (url: string, options?: any) => Promise<any>;
     post: (url: string, data?: any) => Promise<any>;
@@ -49,13 +54,49 @@ interface CustomFrameworkControlsProps {
   };
 }
 
+// Toggle button styles matching the app's ButtonToggle
+const toggleContainerStyle = {
+  display: "inline-flex",
+  borderRadius: "4px",
+  border: "1px solid #D0D5DD",
+  overflow: "hidden",
+  backgroundColor: "#fff",
+};
+
+const toggleButtonStyle = (isSelected: boolean, _isCustom: boolean = false) => ({
+  padding: "8px 16px",
+  fontSize: "13px",
+  fontWeight: 500,
+  cursor: "pointer",
+  border: "none",
+  borderRight: "1px solid #D0D5DD",
+  backgroundColor: isSelected ? "#13715B" : "#fff",
+  color: isSelected ? "#fff" : "#344054",
+  transition: "all 0.2s ease",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  "&:hover": {
+    backgroundColor: isSelected ? "#0e5c47" : "#F9FAFB",
+  },
+  "&:last-child": {
+    borderRight: "none",
+  },
+});
+
 export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = ({
   project,
+  builtInFrameworks,
+  selectedBuiltInFramework,
+  onBuiltInFrameworkSelect,
+  renderBuiltInContent,
   onRefresh,
+  children,
   apiServices,
 }) => {
-  const [frameworks, setFrameworks] = useState<CustomFramework[]>([]);
-  const [selectedFramework, setSelectedFramework] = useState<number | null>(null);
+  const [customFrameworks, setCustomFrameworks] = useState<CustomFramework[]>([]);
+  const [selectedCustomFramework, setSelectedCustomFramework] = useState<number | null>(null);
+  const [isCustomSelected, setIsCustomSelected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const api = apiServices || {
@@ -82,11 +123,13 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
   };
 
   const loadFrameworks = useCallback(async () => {
-    if (!project?.id) return;
+    if (!project?.id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
-      // Fetch custom frameworks added to this project
       const response = await api.get(
         `/plugins/custom-framework-import/projects/${project.id}/custom-frameworks`
       );
@@ -100,35 +143,32 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
       }
 
       const frameworksArray = Array.isArray(rawData) ? rawData : [];
-      console.log("[CustomFrameworkControls] Loaded frameworks:", frameworksArray);
-      setFrameworks(frameworksArray);
-
-      // Auto-select first framework if available
-      if (frameworksArray.length > 0 && selectedFramework === null) {
-        setSelectedFramework(frameworksArray[0].framework_id);
-      }
+      console.log("[CustomFrameworkControls] Loaded custom frameworks:", frameworksArray);
+      setCustomFrameworks(frameworksArray);
     } catch (err) {
       console.log("[CustomFrameworkControls] Error loading frameworks:", err);
-      setFrameworks([]);
+      setCustomFrameworks([]);
     } finally {
       setLoading(false);
     }
-  }, [project?.id, api]);
+  }, [project?.id]);
 
   useEffect(() => {
     loadFrameworks();
   }, [loadFrameworks]);
 
-  const handleFrameworkChange = (
-    _event: React.MouseEvent<HTMLElement>,
-    newFrameworkId: number | null
-  ) => {
-    if (newFrameworkId !== null) {
-      setSelectedFramework(newFrameworkId);
-    }
+  const handleBuiltInSelect = (index: number) => {
+    setIsCustomSelected(false);
+    setSelectedCustomFramework(null);
+    onBuiltInFrameworkSelect(index);
   };
 
-  // Don't render anything if no custom frameworks are added to the project
+  const handleCustomSelect = (frameworkId: number) => {
+    setIsCustomSelected(true);
+    setSelectedCustomFramework(frameworkId);
+  };
+
+  // If still loading, show spinner
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
@@ -137,86 +177,77 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
     );
   }
 
-  if (frameworks.length === 0) {
-    return null; // Don't show anything if no custom frameworks
+  // If no custom frameworks, render the default children (built-in toggle + content)
+  if (customFrameworks.length === 0) {
+    return <>{children}</>;
   }
 
-  const currentFramework = frameworks.find((fw) => fw.framework_id === selectedFramework);
+  // Render combined toggle with built-in + custom frameworks
+  const currentCustomFramework = customFrameworks.find(
+    (fw) => fw.framework_id === selectedCustomFramework
+  );
 
   return (
     <Stack spacing={3}>
-      {/* Divider with label */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 4 }}>
-        <Divider sx={{ flex: 1, borderColor: borderColors.default }} />
-        <Chip
-          icon={<FileJson size={14} />}
-          label="Custom Frameworks"
-          size="small"
-          sx={{
-            backgroundColor: `${colors.primary}12`,
-            color: colors.primary,
-            fontWeight: 500,
-            fontSize: fontSizes.small,
-            border: `1px solid ${colors.primary}30`,
-            "& .MuiChip-icon": { color: colors.primary },
-          }}
-        />
-        <Divider sx={{ flex: 1, borderColor: borderColors.default }} />
-      </Box>
+      {/* Combined framework toggle */}
+      {project && (builtInFrameworks.length > 0 || customFrameworks.length > 0) && (
+        <Box data-joyride-id="framework-toggle" sx={toggleContainerStyle}>
+          {/* Built-in framework options */}
+          {builtInFrameworks.map((framework, index) => (
+            <Box
+              key={framework.id}
+              component="button"
+              onClick={() => handleBuiltInSelect(index)}
+              sx={toggleButtonStyle(!isCustomSelected && selectedBuiltInFramework === index)}
+            >
+              {framework.name}
+            </Box>
+          ))}
 
-      {/* Framework toggle */}
-      {frameworks.length > 1 && (
-        <Box>
-          <ToggleButtonGroup
-            value={selectedFramework}
-            exclusive
-            onChange={handleFrameworkChange}
-            aria-label="custom framework selection"
-            sx={{
-              "& .MuiToggleButton-root": {
-                textTransform: "none",
-                px: 3,
-                py: 1,
-                fontSize: fontSizes.medium,
-                borderColor: borderColors.default,
-                "&.Mui-selected": {
-                  backgroundColor: colors.primary,
-                  color: "#fff",
-                  "&:hover": {
-                    backgroundColor: colors.primaryHover,
-                  },
-                },
-              },
-            }}
-          >
-            {frameworks.map((fw) => (
-              <ToggleButton key={fw.framework_id} value={fw.framework_id}>
-                {fw.name}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+          {/* Custom framework options */}
+          {customFrameworks.map((framework) => (
+            <Box
+              key={`custom-${framework.framework_id}`}
+              component="button"
+              onClick={() => handleCustomSelect(framework.framework_id)}
+              sx={toggleButtonStyle(isCustomSelected && selectedCustomFramework === framework.framework_id, true)}
+            >
+              {framework.name}
+              <Chip
+                label="Custom"
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  backgroundColor: isCustomSelected && selectedCustomFramework === framework.framework_id
+                    ? "rgba(255,255,255,0.2)"
+                    : "#eff6ff",
+                  color: isCustomSelected && selectedCustomFramework === framework.framework_id
+                    ? "#fff"
+                    : "#3b82f6",
+                  ml: 0.5,
+                }}
+              />
+            </Box>
+          ))}
         </Box>
       )}
 
-      {/* Single framework title (when only one custom framework) */}
-      {frameworks.length === 1 && (
-        <Typography variant="h6" fontWeight={600}>
-          {frameworks[0].name}
-        </Typography>
-      )}
-
-      {/* Framework viewer */}
-      {selectedFramework && currentFramework && (
+      {/* Content area */}
+      {isCustomSelected && selectedCustomFramework && currentCustomFramework ? (
         <CustomFrameworkViewer
-          frameworkId={selectedFramework}
+          frameworkId={selectedCustomFramework}
           projectId={project.id}
-          frameworkName={currentFramework.name}
+          frameworkName={currentCustomFramework.name}
           apiServices={api}
           onRefresh={() => {
             loadFrameworks();
             onRefresh?.();
           }}
         />
+      ) : (
+        renderBuiltInContent()
       )}
     </Stack>
   );
