@@ -75,14 +75,34 @@ export const CustomFrameworkDrawer: React.FC<CustomFrameworkDrawerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Helper to get auth token from localStorage (redux-persist)
+  const getAuthToken = (): string | null => {
+    try {
+      const persistedRoot = localStorage.getItem("persist:root");
+      if (persistedRoot) {
+        const parsed = JSON.parse(persistedRoot);
+        if (parsed.auth) {
+          const authState = JSON.parse(parsed.auth);
+          return authState.authToken || null;
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+    return null;
+  };
+
   const api = apiServices || {
     patch: async (url: string, body?: any) => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch(`/api${url}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
-      return { data: await response.json() };
+      return { data: await response.json(), status: response.status };
     },
   };
 

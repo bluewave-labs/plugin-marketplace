@@ -124,10 +124,30 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [expandedLevel1, setExpandedLevel1] = useState<number | false>(false);
 
+  // Helper to get auth token from localStorage (redux-persist)
+  const getAuthToken = (): string | null => {
+    try {
+      const persistedRoot = localStorage.getItem("persist:root");
+      if (persistedRoot) {
+        const parsed = JSON.parse(persistedRoot);
+        if (parsed.auth) {
+          const authState = JSON.parse(parsed.auth);
+          return authState.authToken || null;
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+    return null;
+  };
+
   const api = apiServices || {
     get: async (url: string) => {
-      const response = await fetch(`/api${url}`);
-      return { data: await response.json() };
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const response = await fetch(`/api${url}`, { headers });
+      return { data: await response.json(), status: response.status };
     },
   };
 
