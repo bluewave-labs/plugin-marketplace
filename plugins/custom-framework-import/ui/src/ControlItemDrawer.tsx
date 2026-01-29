@@ -2,7 +2,8 @@
  * Control Item Drawer
  *
  * Drawer for viewing and editing custom framework control items (Level 2 items).
- * Allows users to update status, owner, reviewer, due date, implementation details, and evidence.
+ * Matches the UI pattern of ISO 27001/42001 drawer dialogs.
+ * Features tabs: Details, Evidence, Cross-mappings, Notes
  */
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -15,34 +16,31 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Button,
-  Chip,
   Divider,
   CircularProgress,
-  Alert,
   Stack,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
+  Tabs,
+  Tab,
+  Tooltip,
+  SelectChangeEvent,
 } from "@mui/material";
 import {
-  X,
-  Save,
-  FileText,
-  AlertTriangle,
-  Plus,
-  Trash2,
+  X as CloseIcon,
+  Save as SaveIcon,
+  FileText as FileIcon,
+  Trash2 as DeleteIcon,
+  Download as DownloadIcon,
+  Eye as ViewIcon,
   Link as LinkIcon,
+  MessageSquare,
+  FolderOpen,
   HelpCircle,
+  AlertTriangle,
 } from "lucide-react";
 import {
   colors,
   textColors,
-  bgColors,
-  borderColors,
   statusOptions,
   StatusType,
   statusColors,
@@ -87,7 +85,8 @@ interface Level2Item {
   approver_surname?: string;
   due_date?: string;
   implementation_details?: string;
-  evidence_links?: EvidenceLink[];
+  auditor_feedback?: string;
+  evidence_files?: EvidenceFile[];
   linked_risks?: LinkedRisk[];
   items?: Level3Item[];
 }
@@ -103,16 +102,18 @@ interface Level3Item {
   due_date?: string;
 }
 
-interface EvidenceLink {
-  id?: number;
-  name: string;
-  url: string;
+interface EvidenceFile {
+  id: number;
+  fileName: string;
+  size?: number;
   type?: string;
+  uploadDate?: string;
 }
 
 interface LinkedRisk {
   id: number;
-  title: string;
+  risk_name: string;
+  risk_level?: string;
   severity?: string;
 }
 
@@ -126,23 +127,31 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
   open,
   onClose,
   item,
-  frameworkData,
   onSave,
   apiServices,
 }) => {
+  const [activeTab, setActiveTab] = useState("details");
   const [formData, setFormData] = useState({
     status: "Not started",
     owner: "",
     reviewer: "",
     approver: "",
-    due_date: null as Date | null,
+    due_date: "",
     implementation_details: "",
-    evidence_links: [] as EvidenceLink[],
+    auditor_feedback: "",
   });
   const [users, setUsers] = useState<User[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newEvidence, setNewEvidence] = useState({ name: "", url: "" });
+
+  // Evidence state
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [deletedFileIds, setDeletedFileIds] = useState<number[]>([]);
+
+  // Linked risks state
+  const [linkedRisks, setLinkedRisks] = useState<LinkedRisk[]>([]);
 
   // Helper to get auth token from localStorage (redux-persist)
   const getAuthToken = (): string | null => {
@@ -209,6 +218,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
   useEffect(() => {
     if (open) {
       loadUsers();
+      setActiveTab("details");
     }
   }, [open, loadUsers]);
 
@@ -220,12 +230,28 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         owner: item.owner?.toString() || "",
         reviewer: item.reviewer?.toString() || "",
         approver: item.approver?.toString() || "",
-        due_date: item.due_date ? new Date(item.due_date) : null,
+        due_date: item.due_date || "",
         implementation_details: item.implementation_details || "",
-        evidence_links: item.evidence_links || [],
+        auditor_feedback: item.auditor_feedback || "",
       });
+      setEvidenceFiles(item.evidence_files || []);
+      setLinkedRisks(item.linked_risks || []);
+      setUploadFiles([]);
+      setDeletedFileIds([]);
     }
   }, [item]);
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    setActiveTab(newValue);
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSelectChange = (field: string) => (event: SelectChangeEvent<string>) => {
+    handleFieldChange(field, event.target.value);
+  };
 
   const handleSave = async () => {
     if (!item?.impl_id) {
@@ -240,7 +266,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
       const payload: any = {
         status: formData.status,
         implementation_details: formData.implementation_details,
-        evidence_links: formData.evidence_links,
+        auditor_feedback: formData.auditor_feedback,
       };
 
       if (formData.owner) {
@@ -262,7 +288,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
       }
 
       if (formData.due_date) {
-        payload.due_date = formData.due_date.toISOString().split("T")[0];
+        payload.due_date = formData.due_date;
       } else {
         payload.due_date = null;
       }
@@ -285,392 +311,860 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
     }
   };
 
-  const handleAddEvidence = () => {
-    if (newEvidence.name && newEvidence.url) {
-      setFormData((prev) => ({
-        ...prev,
-        evidence_links: [...prev.evidence_links, { ...newEvidence }],
-      }));
-      setNewEvidence({ name: "", url: "" });
+  // Evidence handlers
+  const handleAddFiles = (files: FileList | null) => {
+    if (files) {
+      const newFiles = Array.from(files);
+      setUploadFiles((prev) => [...prev, ...newFiles]);
     }
   };
 
-  const handleRemoveEvidence = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      evidence_links: prev.evidence_links.filter((_, i) => i !== index),
-    }));
+  const handleDeleteEvidenceFile = (fileId: number) => {
+    setDeletedFileIds((prev) => [...prev, fileId]);
+    setEvidenceFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  const handleRemoveUploadFile = (index: number) => {
+    setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const getStatusColor = (status: string) => {
     return statusColors[status as StatusType]?.color || "#94a3b8";
   };
 
-  const getStatusBg = (status: string) => {
-    return statusColors[status as StatusType]?.bg || "#f1f5f9";
-  };
-
   if (!item) return null;
+
+  // Loading state
+  if (loading) {
+    return (
+      <Drawer
+        open={open}
+        onClose={onClose}
+        anchor="right"
+        PaperProps={{
+          sx: { width: 600, margin: 0, borderRadius: 0 },
+        }}
+      >
+        <Stack
+          sx={{
+            width: 600,
+            height: "100%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <CircularProgress sx={{ color: colors.primary }} />
+          <Typography sx={{ mt: 2, color: textColors.secondary }}>Loading...</Typography>
+        </Stack>
+      </Drawer>
+    );
+  }
 
   return (
     <Drawer
-      anchor="right"
       open={open}
       onClose={onClose}
+      anchor="right"
       PaperProps={{
-        sx: { width: { xs: "100%", sm: 600, md: 700 }, maxWidth: "100%" },
+        sx: {
+          width: 600,
+          margin: 0,
+          borderRadius: 0,
+          overflowX: "hidden",
+        },
       }}
     >
-      {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          p: 2.5,
-          borderBottom: `1px solid ${borderColors.light}`,
-          background: bgColors.modalHeader,
-        }}
-      >
-        <Box>
-          <Typography sx={{ fontSize: "15px", fontWeight: 600, color: textColors.primary }}>
-            {frameworkData?.level_2_name || "Control"} Details
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {item.title}
-          </Typography>
-        </Box>
-        <IconButton onClick={onClose} size="small">
-          <X size={20} color={textColors.muted} />
-        </IconButton>
-      </Box>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, overflow: "auto", p: 3 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        <Stack spacing={3}>
-          {/* Title and Description */}
-          <Box>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              {item.title}
-            </Typography>
-            {item.description && (
-              <Typography variant="body2" color="text.secondary">
-                {item.description}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Questions */}
-          {item.questions && item.questions.length > 0 && (
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: "#f8fafc" }}>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <HelpCircle size={16} />
-                Key Questions
-              </Typography>
-              <List dense sx={{ pl: 2 }}>
-                {item.questions.map((q, idx) => (
-                  <ListItem key={idx} sx={{ py: 0.5, px: 0 }}>
-                    <ListItemText
-                      primary={`${idx + 1}. ${q}`}
-                      primaryTypographyProps={{ variant: "body2" }}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          )}
-
-          {/* Evidence Examples */}
-          {item.evidence_examples && item.evidence_examples.length > 0 && (
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <FileText size={16} />
-                Evidence Examples
-              </Typography>
-              <List dense sx={{ pl: 2 }}>
-                {item.evidence_examples.map((e, idx) => (
-                  <ListItem key={idx} sx={{ py: 0.5, px: 0 }}>
-                    <ListItemText
-                      primary={`• ${e}`}
-                      primaryTypographyProps={{ variant: "body2", color: "text.secondary" }}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          )}
-
-          <Divider />
-
-          {/* Status */}
-          <FormControl fullWidth size="small">
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={formData.status}
-              label="Status"
-              onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
-            >
-              {statusOptions.map((status) => (
-                <MenuItem key={status} value={status}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        bgcolor: getStatusColor(status),
-                      }}
-                    />
-                    {status}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Owner */}
-          <FormControl fullWidth size="small">
-            <InputLabel>Owner</InputLabel>
-            <Select
-              value={formData.owner}
-              label="Owner"
-              onChange={(e) => setFormData((prev) => ({ ...prev, owner: e.target.value }))}
-            >
-              <MenuItem value="">
-                <em>Not assigned</em>
-              </MenuItem>
-              {users.map((user) => (
-                <MenuItem key={user.id} value={user.id.toString()}>
-                  {user.name} {user.surname}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Reviewer */}
-          <FormControl fullWidth size="small">
-            <InputLabel>Reviewer</InputLabel>
-            <Select
-              value={formData.reviewer}
-              label="Reviewer"
-              onChange={(e) => setFormData((prev) => ({ ...prev, reviewer: e.target.value }))}
-            >
-              <MenuItem value="">
-                <em>Not assigned</em>
-              </MenuItem>
-              {users.map((user) => (
-                <MenuItem key={user.id} value={user.id.toString()}>
-                  {user.name} {user.surname}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Approver */}
-          <FormControl fullWidth size="small">
-            <InputLabel>Approver</InputLabel>
-            <Select
-              value={formData.approver}
-              label="Approver"
-              onChange={(e) => setFormData((prev) => ({ ...prev, approver: e.target.value }))}
-            >
-              <MenuItem value="">
-                <em>Not assigned</em>
-              </MenuItem>
-              {users.map((user) => (
-                <MenuItem key={user.id} value={user.id.toString()}>
-                  {user.name} {user.surname}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Due Date */}
-          <TextField
-            label="Due Date"
-            type="date"
-            size="small"
-            fullWidth
-            value={formData.due_date ? formData.due_date.toISOString().split("T")[0] : ""}
-            onChange={(e) => setFormData((prev) => ({
-              ...prev,
-              due_date: e.target.value ? new Date(e.target.value) : null
-            }))}
-            InputLabelProps={{ shrink: true }}
-          />
-
-          {/* Implementation Details */}
-          <TextField
-            label="Implementation Details"
-            multiline
-            rows={4}
-            fullWidth
-            size="small"
-            value={formData.implementation_details}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, implementation_details: e.target.value }))
-            }
-            placeholder="Describe how this control is implemented..."
-          />
-
-          {/* Evidence Links */}
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <LinkIcon size={16} />
-              Evidence Links
-            </Typography>
-
-            {formData.evidence_links.length > 0 && (
-              <List dense sx={{ mb: 2 }}>
-                {formData.evidence_links.map((link, idx) => (
-                  <Paper key={idx} variant="outlined" sx={{ mb: 1 }}>
-                    <ListItem>
-                      <ListItemText
-                        primary={link.name}
-                        secondary={link.url}
-                        primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
-                        secondaryTypographyProps={{ variant: "caption", sx: { wordBreak: "break-all" } }}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveEvidence(idx)}
-                          sx={{ color: colors.error }}
-                        >
-                          <Trash2 size={16} />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  </Paper>
-                ))}
-              </List>
-            )}
-
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <TextField
-                size="small"
-                placeholder="Evidence name"
-                value={newEvidence.name}
-                onChange={(e) => setNewEvidence((prev) => ({ ...prev, name: e.target.value }))}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                size="small"
-                placeholder="URL"
-                value={newEvidence.url}
-                onChange={(e) => setNewEvidence((prev) => ({ ...prev, url: e.target.value }))}
-                sx={{ flex: 2 }}
-              />
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleAddEvidence}
-                disabled={!newEvidence.name || !newEvidence.url}
-                sx={{ minWidth: 40 }}
-              >
-                <Plus size={18} />
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Linked Risks */}
-          {item.linked_risks && item.linked_risks.length > 0 && (
-            <Box>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <AlertTriangle size={16} color={colors.warning} />
-                Linked Risks ({item.linked_risks.length})
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                {item.linked_risks.map((risk) => (
-                  <Chip
-                    key={risk.id}
-                    label={risk.title}
-                    size="small"
-                    variant="outlined"
-                    sx={{ borderColor: colors.warning, color: textColors.primary }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Level 3 Items (Sub-controls) */}
-          {item.items && item.items.length > 0 && frameworkData?.level_3_name && (
-            <Box>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                {frameworkData.level_3_name}s ({item.items.length})
-              </Typography>
-              <List dense>
-                {item.items.map((subItem) => (
-                  <Paper key={subItem.id} variant="outlined" sx={{ mb: 1 }}>
-                    <ListItem>
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          bgcolor: getStatusColor(subItem.status || "Not started"),
-                          mr: 1.5,
-                        }}
-                      />
-                      <ListItemText
-                        primary={subItem.title}
-                        secondary={subItem.description}
-                        primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
-                        secondaryTypographyProps={{ variant: "caption" }}
-                      />
-                      <Chip
-                        label={subItem.status || "Not started"}
-                        size="small"
-                        sx={{
-                          height: 22,
-                          fontSize: "0.7rem",
-                          bgcolor: getStatusBg(subItem.status || "Not started"),
-                          color: getStatusColor(subItem.status || "Not started"),
-                        }}
-                      />
-                    </ListItem>
-                  </Paper>
-                ))}
-              </List>
-            </Box>
-          )}
-        </Stack>
-      </Box>
-
-      {/* Footer */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 2,
-          p: 2.5,
-          borderTop: `1px solid ${borderColors.light}`,
-          bgcolor: bgColors.subtle,
-        }}
-      >
-        <Button variant="outlined" onClick={onClose} disabled={saving}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving}
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
+      <Stack sx={{ width: 600 }}>
+        {/* Header */}
+        <Stack
           sx={{
-            bgcolor: colors.primary,
-            "&:hover": { bgcolor: colors.primaryHover },
+            width: 600,
+            padding: "15px 20px",
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
-      </Box>
+          <Typography fontSize={15} fontWeight={700} color={textColors.primary}>
+            {item.title}
+          </Typography>
+          <CloseIcon
+            size={20}
+            onClick={onClose}
+            style={{ cursor: "pointer", color: textColors.muted }}
+          />
+        </Stack>
+
+        <Divider />
+
+        {/* Tabs */}
+        <Box sx={{ padding: "0 20px" }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            sx={{
+              minHeight: 40,
+              "& .MuiTab-root": {
+                minHeight: 40,
+                fontSize: 13,
+                textTransform: "none",
+                color: textColors.secondary,
+                "&.Mui-selected": {
+                  color: colors.primary,
+                },
+              },
+              "& .MuiTabs-indicator": {
+                backgroundColor: colors.primary,
+              },
+            }}
+          >
+            <Tab
+              value="details"
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <FileIcon size={14} />
+                  Details
+                </Box>
+              }
+            />
+            <Tab
+              value="evidence"
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <FolderOpen size={14} />
+                  Evidence
+                </Box>
+              }
+            />
+            <Tab
+              value="cross-mappings"
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <LinkIcon size={14} />
+                  Cross mappings
+                </Box>
+              }
+            />
+            <Tab
+              value="notes"
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <MessageSquare size={14} />
+                  Notes
+                </Box>
+              }
+            />
+          </Tabs>
+        </Box>
+
+        {/* Tab Content */}
+        <Box sx={{ flex: 1, overflow: "auto" }}>
+          {/* Details Tab */}
+          {activeTab === "details" && (
+            <Box sx={{ padding: "15px 20px" }}>
+              <Stack gap="15px">
+                {/* Description/Summary Panel */}
+                {item.description && (
+                  <Stack
+                    sx={{
+                      border: "1px solid #eee",
+                      padding: "12px",
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <Typography fontSize={13} sx={{ marginBottom: "8px" }}>
+                      <strong>Description:</strong>
+                    </Typography>
+                    <Typography fontSize={13} color="#666">
+                      {item.description}
+                    </Typography>
+                  </Stack>
+                )}
+
+                {/* Key Questions Panel */}
+                {item.questions && item.questions.length > 0 && (
+                  <Stack
+                    sx={{
+                      border: "1px solid #e8d5d5",
+                      padding: "12px",
+                      backgroundColor: "#fef5f5",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <Typography
+                      fontSize={13}
+                      sx={{ marginBottom: "8px", fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <HelpCircle size={14} />
+                      Key Questions:
+                    </Typography>
+                    <Stack spacing={1}>
+                      {item.questions.map((question, idx) => (
+                        <Typography
+                          key={idx}
+                          fontSize={12}
+                          color="#666"
+                          sx={{ pl: 1, position: "relative" }}
+                        >
+                          • {question}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </Stack>
+                )}
+
+                {/* Evidence Examples Panel */}
+                {item.evidence_examples && item.evidence_examples.length > 0 && (
+                  <Stack
+                    sx={{
+                      border: "1px solid #d5e8d5",
+                      padding: "12px",
+                      backgroundColor: "#f5fef5",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <Typography
+                      fontSize={13}
+                      sx={{ marginBottom: "8px", fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <FileIcon size={14} />
+                      Evidence Examples:
+                    </Typography>
+                    <Stack spacing={1}>
+                      {item.evidence_examples.map((example, idx) => (
+                        <Typography
+                          key={idx}
+                          fontSize={12}
+                          color="#666"
+                          sx={{ pl: 1, position: "relative" }}
+                        >
+                          • {example}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  </Stack>
+                )}
+
+                {/* Implementation Description */}
+                <Stack>
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Implementation Description:
+                  </Typography>
+                  <TextField
+                    multiline
+                    rows={3}
+                    value={formData.implementation_details}
+                    onChange={(e) => handleFieldChange("implementation_details", e.target.value)}
+                    placeholder="Describe how this requirement is implemented"
+                    size="small"
+                    fullWidth
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                </Stack>
+              </Stack>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Stack gap="24px">
+                {/* Status */}
+                <FormControl fullWidth size="small">
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Status:
+                  </Typography>
+                  <Select
+                    value={formData.status}
+                    onChange={handleSelectChange("status")}
+                    sx={{ height: 34, fontSize: 13 }}
+                  >
+                    {statusOptions.map((status) => (
+                      <MenuItem key={status} value={status}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: "50%",
+                              bgcolor: getStatusColor(status),
+                            }}
+                          />
+                          {status}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Owner */}
+                <FormControl fullWidth size="small">
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Owner:
+                  </Typography>
+                  <Select
+                    value={formData.owner}
+                    onChange={handleSelectChange("owner")}
+                    displayEmpty
+                    sx={{ height: 34, fontSize: 13 }}
+                  >
+                    <MenuItem value="">
+                      <em style={{ color: "#9ca3af" }}>Select owner</em>
+                    </MenuItem>
+                    {users.map((user) => (
+                      <MenuItem key={user.id} value={user.id.toString()}>
+                        {user.name} {user.surname}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Reviewer */}
+                <FormControl fullWidth size="small">
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Reviewer:
+                  </Typography>
+                  <Select
+                    value={formData.reviewer}
+                    onChange={handleSelectChange("reviewer")}
+                    displayEmpty
+                    sx={{ height: 34, fontSize: 13 }}
+                  >
+                    <MenuItem value="">
+                      <em style={{ color: "#9ca3af" }}>Select reviewer</em>
+                    </MenuItem>
+                    {users.map((user) => (
+                      <MenuItem key={user.id} value={user.id.toString()}>
+                        {user.name} {user.surname}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Approver */}
+                <FormControl fullWidth size="small">
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Approver:
+                  </Typography>
+                  <Select
+                    value={formData.approver}
+                    onChange={handleSelectChange("approver")}
+                    displayEmpty
+                    sx={{ height: 34, fontSize: 13 }}
+                  >
+                    <MenuItem value="">
+                      <em style={{ color: "#9ca3af" }}>Select approver</em>
+                    </MenuItem>
+                    {users.map((user) => (
+                      <MenuItem key={user.id} value={user.id.toString()}>
+                        {user.name} {user.surname}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Due Date */}
+                <Stack>
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Due date:
+                  </Typography>
+                  <TextField
+                    type="date"
+                    size="small"
+                    fullWidth
+                    value={formData.due_date}
+                    onChange={(e) => handleFieldChange("due_date", e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        height: 34,
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                </Stack>
+
+                {/* Auditor Feedback */}
+                <Stack>
+                  <Typography fontSize={13} sx={{ marginBottom: "5px" }}>
+                    Auditor Feedback:
+                  </Typography>
+                  <TextField
+                    multiline
+                    rows={3}
+                    value={formData.auditor_feedback}
+                    onChange={(e) => handleFieldChange("auditor_feedback", e.target.value)}
+                    placeholder="Enter any feedback from internal or external audits..."
+                    size="small"
+                    fullWidth
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                </Stack>
+              </Stack>
+            </Box>
+          )}
+
+          {/* Evidence Tab */}
+          {activeTab === "evidence" && (
+            <Box sx={{ padding: "15px 20px" }}>
+              <Stack spacing={3}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  Evidence files
+                </Typography>
+                <Typography variant="body2" color="#6B7280">
+                  Upload evidence files to document compliance with this requirement.
+                </Typography>
+
+                {/* File Input */}
+                <Box>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    style={{ display: "none" }}
+                    id="evidence-file-input"
+                    onChange={(e) => {
+                      handleAddFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Stack spacing={2}>
+                    <Button
+                      variant="contained"
+                      onClick={() => document.getElementById("evidence-file-input")?.click()}
+                      sx={{
+                        borderRadius: 2,
+                        minWidth: 155,
+                        height: 25,
+                        fontSize: 11,
+                        border: "1px solid #D0D5DD",
+                        backgroundColor: "white",
+                        color: "#344054",
+                        "&:hover": {
+                          backgroundColor: "#F9FAFB",
+                          border: "1px solid #D0D5DD",
+                        },
+                      }}
+                    >
+                      Add evidence files
+                    </Button>
+
+                    <Stack direction="row" spacing={2}>
+                      <Typography sx={{ fontSize: 11, color: "#344054" }}>
+                        {`${evidenceFiles.length || 0} files attached`}
+                      </Typography>
+                      {uploadFiles.length > 0 && (
+                        <Typography sx={{ fontSize: 11, color: "#13715B" }}>
+                          {`+${uploadFiles.length} pending upload`}
+                        </Typography>
+                      )}
+                      {deletedFileIds.length > 0 && (
+                        <Typography sx={{ fontSize: 11, color: "#D32F2F" }}>
+                          {`-${deletedFileIds.length} pending delete`}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Stack>
+                </Box>
+
+                {/* Existing Files List */}
+                {evidenceFiles.length > 0 && (
+                  <Stack spacing={1}>
+                    {evidenceFiles.map((file) => (
+                      <Box
+                        key={file.id}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          border: "1px solid #EAECF0",
+                          borderRadius: "4px",
+                          backgroundColor: "#FFFFFF",
+                          "&:hover": {
+                            backgroundColor: "#F9FAFB",
+                          },
+                        }}
+                      >
+                        <Box sx={{ display: "flex", gap: 1.5, flex: 1, minWidth: 0 }}>
+                          <FileIcon size={18} color="#475467" />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography
+                              sx={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: "#1F2937",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {file.fileName}
+                            </Typography>
+                            {file.size && (
+                              <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                                {((file.size || 0) / 1024).toFixed(1)} KB
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <Tooltip title="Download file">
+                            <IconButton
+                              size="small"
+                              sx={{
+                                color: "#475467",
+                                "&:hover": {
+                                  color: "#13715B",
+                                  backgroundColor: "rgba(19, 113, 91, 0.08)",
+                                },
+                              }}
+                            >
+                              <DownloadIcon size={16} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete file">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteEvidenceFile(file.id)}
+                              sx={{
+                                color: "#475467",
+                                "&:hover": {
+                                  color: "#D32F2F",
+                                  backgroundColor: "rgba(211, 47, 47, 0.08)",
+                                },
+                              }}
+                            >
+                              <DeleteIcon size={16} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+
+                {/* Pending Upload Files */}
+                {uploadFiles.length > 0 && (
+                  <Stack spacing={1}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#92400E" }}>
+                      Pending upload
+                    </Typography>
+                    {uploadFiles.map((file, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          border: "1px solid #FEF3C7",
+                          borderRadius: "4px",
+                          backgroundColor: "#FFFBEB",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", gap: 1.5, flex: 1, minWidth: 0 }}>
+                          <FileIcon size={18} color="#D97706" />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography
+                              sx={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: "#92400E",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {file.name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 11, color: "#B45309" }}>
+                              {((file.size || 0) / 1024).toFixed(1)} KB
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Tooltip title="Remove from queue">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemoveUploadFile(index)}
+                            sx={{
+                              color: "#92400E",
+                              "&:hover": {
+                                color: "#D32F2F",
+                                backgroundColor: "rgba(211, 47, 47, 0.08)",
+                              },
+                            }}
+                          >
+                            <DeleteIcon size={16} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+
+                {/* Empty State */}
+                {evidenceFiles.length === 0 && uploadFiles.length === 0 && (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 4,
+                      color: "#6B7280",
+                      border: "2px dashed #D1D5DB",
+                      borderRadius: 1,
+                      backgroundColor: "#F9FAFB",
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      No evidence files uploaded yet
+                    </Typography>
+                    <Typography variant="caption" color="#9CA3AF">
+                      Click "Add evidence files" to upload documentation for this requirement
+                    </Typography>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Cross Mappings Tab */}
+          {activeTab === "cross-mappings" && (
+            <Box sx={{ padding: "15px 20px" }}>
+              <Stack spacing={3}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  Linked risks
+                </Typography>
+                <Typography variant="body2" color="#6B7280">
+                  Link risks from your risk database to track which risks are addressed by this requirement.
+                </Typography>
+
+                {/* Add/Remove Button */}
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Button
+                    variant="contained"
+                    sx={{
+                      borderRadius: 2,
+                      minWidth: 155,
+                      height: 25,
+                      fontSize: 11,
+                      border: "1px solid #D0D5DD",
+                      backgroundColor: "white",
+                      color: "#344054",
+                      "&:hover": {
+                        backgroundColor: "#F9FAFB",
+                        border: "1px solid #D0D5DD",
+                      },
+                    }}
+                  >
+                    Add/remove risks
+                  </Button>
+
+                  <Typography sx={{ fontSize: 11, color: "#344054" }}>
+                    {`${linkedRisks.length || 0} risks linked`}
+                  </Typography>
+                </Stack>
+
+                {/* Linked Risks List */}
+                {linkedRisks.length > 0 && (
+                  <Stack spacing={1}>
+                    {linkedRisks.map((risk) => (
+                      <Box
+                        key={risk.id}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          border: "1px solid #EAECF0",
+                          borderRadius: "4px",
+                          backgroundColor: "#FFFFFF",
+                          "&:hover": {
+                            backgroundColor: "#F9FAFB",
+                          },
+                        }}
+                      >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: "#1F2937",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {risk.risk_name}
+                          </Typography>
+                          {risk.risk_level && (
+                            <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                              Risk level: {risk.risk_level}
+                            </Typography>
+                          )}
+                        </Box>
+
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <Tooltip title="View details">
+                            <IconButton
+                              size="small"
+                              sx={{
+                                color: "#475467",
+                                "&:hover": {
+                                  color: "#13715B",
+                                  backgroundColor: "rgba(19, 113, 91, 0.08)",
+                                },
+                              }}
+                            >
+                              <ViewIcon size={16} />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title="Unlink risk">
+                            <IconButton
+                              size="small"
+                              sx={{
+                                color: "#475467",
+                                "&:hover": {
+                                  color: "#D32F2F",
+                                  backgroundColor: "rgba(211, 47, 47, 0.08)",
+                                },
+                              }}
+                            >
+                              <DeleteIcon size={16} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+
+                {/* Empty State */}
+                {linkedRisks.length === 0 && (
+                  <Box
+                    sx={{
+                      border: "2px dashed #D0D5DD",
+                      borderRadius: "4px",
+                      padding: "20px",
+                      textAlign: "center",
+                      backgroundColor: "#FAFBFC",
+                    }}
+                  >
+                    <AlertTriangle size={24} color="#9CA3AF" style={{ marginBottom: 8 }} />
+                    <Typography sx={{ color: "#6B7280" }}>
+                      No risks linked yet
+                    </Typography>
+                    <Typography variant="caption" color="#9CA3AF">
+                      Click "Add/remove risks" to link risks to this control
+                    </Typography>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Notes Tab */}
+          {activeTab === "notes" && (
+            <Box sx={{ padding: "15px 20px" }}>
+              <Stack spacing={3}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  Notes
+                </Typography>
+                <Typography variant="body2" color="#6B7280">
+                  Add notes and comments related to this control.
+                </Typography>
+
+                {/* Empty State */}
+                <Box
+                  sx={{
+                    border: "2px dashed #D0D5DD",
+                    borderRadius: "4px",
+                    padding: "20px",
+                    textAlign: "center",
+                    backgroundColor: "#FAFBFC",
+                  }}
+                >
+                  <MessageSquare size={24} color="#9CA3AF" style={{ marginBottom: 8 }} />
+                  <Typography sx={{ color: "#6B7280" }}>
+                    No notes yet
+                  </Typography>
+                  <Typography variant="caption" color="#9CA3AF">
+                    Notes functionality will be available soon
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+          )}
+        </Box>
+
+        {/* Error Alert */}
+        {error && (
+          <Box sx={{ padding: "0 20px", mb: 2 }}>
+            <Box
+              sx={{
+                padding: "10px 12px",
+                backgroundColor: "#FEE2E2",
+                border: "1px solid #FECACA",
+                borderRadius: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <AlertTriangle size={16} color="#DC2626" />
+              <Typography fontSize={13} color="#DC2626">
+                {error}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setError(null)}
+                sx={{ ml: "auto", color: "#DC2626" }}
+              >
+                <CloseIcon size={14} />
+              </IconButton>
+            </Box>
+          </Box>
+        )}
+
+        <Divider />
+
+        {/* Footer */}
+        <Stack
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            padding: "15px 20px",
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon size={16} />}
+            sx={{
+              backgroundColor: colors.primary,
+              border: `1px solid ${colors.primary}`,
+              gap: 1,
+              fontSize: 13,
+              height: 32,
+              "&:hover": {
+                backgroundColor: colors.primaryHover,
+              },
+            }}
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </Stack>
+      </Stack>
     </Drawer>
   );
 };

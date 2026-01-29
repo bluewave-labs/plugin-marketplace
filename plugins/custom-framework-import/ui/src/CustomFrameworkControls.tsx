@@ -11,7 +11,6 @@ import {
   Box,
   CircularProgress,
   Stack,
-  Chip,
 } from "@mui/material";
 import { CustomFrameworkViewer } from "./CustomFrameworkViewer";
 import { colors } from "./theme";
@@ -46,6 +45,7 @@ interface CustomFrameworkControlsProps {
   selectedBuiltInFramework: number;
   onBuiltInFrameworkSelect: (index: number) => void;
   renderBuiltInContent: () => React.ReactNode;
+  renderHeaderActions?: () => React.ReactNode;
   onRefresh?: () => void;
   children?: React.ReactNode;
   apiServices?: {
@@ -85,7 +85,6 @@ const toggleTabStyle = {
   position: "relative",
   zIndex: 1,
   transition: "color 0.3s ease",
-  gap: 1,
 };
 
 interface SliderPosition {
@@ -112,6 +111,7 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
   selectedBuiltInFramework,
   onBuiltInFrameworkSelect,
   renderBuiltInContent,
+  renderHeaderActions,
   onRefresh,
   children,
   apiServices,
@@ -272,54 +272,53 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
 
   return (
     <Stack spacing={3}>
-      {/* Combined framework toggle - matching ButtonToggle styling */}
+      {/* Header row with toggle and optional actions */}
       {project && totalOptions > 0 && (
         <Box
-          ref={containerRef}
-          data-joyride-id="framework-toggle"
-          sx={toggleContainerStyle(34)}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
         >
-          {/* Sliding background */}
-          <Box sx={sliderStyle(sliderPosition)} />
+          {/* Combined framework toggle - matching ButtonToggle styling */}
+          <Box
+            ref={containerRef}
+            data-joyride-id="framework-toggle"
+            sx={toggleContainerStyle(34)}
+          >
+            {/* Sliding background */}
+            <Box sx={sliderStyle(sliderPosition)} />
 
-          {/* Built-in framework options */}
-          {builtInFrameworks.map((framework, index) => (
-            <Box
-              key={framework.id}
-              ref={(el: HTMLDivElement | null) => { tabRefs.current[index] = el; }}
-              onClick={() => handleBuiltInSelect(index)}
-              sx={toggleTabStyle}
-            >
-              {framework.name}
-            </Box>
-          ))}
+            {/* Built-in framework options */}
+            {builtInFrameworks.map((framework, index) => (
+              <Box
+                key={framework.id}
+                ref={(el: HTMLDivElement | null) => { tabRefs.current[index] = el; }}
+                onClick={() => handleBuiltInSelect(index)}
+                sx={toggleTabStyle}
+              >
+                {framework.name}
+              </Box>
+            ))}
 
-          {/* Custom framework options */}
-          {customFrameworks.map((framework, index) => (
-            <Box
-              key={`custom-${framework.framework_id}`}
-              ref={(el: HTMLDivElement | null) => { tabRefs.current[builtInFrameworks.length + index] = el; }}
-              onClick={() => handleCustomSelect(framework.framework_id)}
-              sx={toggleTabStyle}
-            >
-              {framework.name}
-              <Chip
-                label="Custom"
-                size="small"
-                sx={{
-                  height: 20,
-                  fontSize: "11px",
-                  fontWeight: 500,
-                  backgroundColor: "#E6F4EE",
-                  color: "#13715B",
-                  border: "none",
-                  "& .MuiChip-label": {
-                    px: 1,
-                  },
-                }}
-              />
-            </Box>
-          ))}
+            {/* Custom framework options */}
+            {customFrameworks.map((framework, index) => (
+              <Box
+                key={`custom-${framework.framework_id}`}
+                ref={(el: HTMLDivElement | null) => { tabRefs.current[builtInFrameworks.length + index] = el; }}
+                onClick={() => handleCustomSelect(framework.framework_id)}
+                sx={toggleTabStyle}
+              >
+                {framework.name}
+              </Box>
+            ))}
+          </Box>
+
+          {/* Optional header actions (e.g., "Manage frameworks" button) */}
+          {renderHeaderActions && renderHeaderActions()}
         </Box>
       )}
 

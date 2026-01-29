@@ -5,24 +5,25 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Chip,
   LinearProgress,
-  Grid,
   CircularProgress,
   Alert,
   Button,
   IconButton,
   Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Stack,
 } from "@mui/material";
 import {
-  ChevronUp,
+  ChevronRight,
   RefreshCw,
 } from "lucide-react";
-import {
-  colors,
-  statusColors,
-  StatusType,
-} from "./theme";
+import { colors } from "./theme";
 import { ControlItemDrawer } from "./ControlItemDrawer";
 
 interface CustomFrameworkViewerProps {
@@ -116,6 +117,39 @@ interface ProgressData {
   };
 }
 
+// Styles matching the app's ControlsTable
+const tableStyles = {
+  tableHead: {
+    "& th": {
+      backgroundColor: "#FAFAFA",
+      fontWeight: 600,
+      fontSize: "13px",
+      color: "#1A1919",
+      borderBottom: "1px solid #E5E7EB",
+      padding: "12px 16px",
+    },
+  },
+  headerCell: {
+    backgroundColor: "#FAFAFA",
+    fontWeight: 600,
+    fontSize: "13px",
+    color: "#1A1919",
+  },
+  cell: {
+    fontSize: "13px",
+    color: "#1A1919",
+    padding: "12px 16px",
+    borderBottom: "1px solid #E5E7EB",
+  },
+  descriptionCell: {
+    fontSize: "13px",
+    color: "#1A1919",
+    padding: "12px 16px",
+    borderBottom: "1px solid #E5E7EB",
+    maxWidth: "400px",
+  },
+};
+
 export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
   frameworkId,
   projectId,
@@ -128,6 +162,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedLevel1, setExpandedLevel1] = useState<number | null>(0);
+  const [flashingRow, setFlashingRow] = useState<number | null>(null);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -253,19 +288,28 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
     setSelectedItem(null);
   };
 
-  const handleItemSave = () => {
+  const handleItemSave = (savedItemId?: number) => {
+    // Flash the row to indicate success
+    if (savedItemId) {
+      setFlashingRow(savedItemId);
+      setTimeout(() => setFlashingRow(null), 1500);
+    }
     // Reload data after saving
     loadFrameworkData();
   };
 
-  const getStatusColor = (status: string): string => {
-    const statusConfig = statusColors[status as StatusType];
-    return statusConfig?.color || "#9CA3AF";
-  };
-
-  const getStatusBg = (status: string): string => {
-    const statusConfig = statusColors[status as StatusType];
-    return statusConfig?.bg || "#f1f5f9";
+  // Progress bar color based on percentage (matching app's ControlsTable)
+  const getProgressColor = (value: number): string => {
+    if (value <= 10) return "#FF4500";
+    if (value <= 20) return "#FF4500";
+    if (value <= 30) return "#FFA500";
+    if (value <= 40) return "#FFD700";
+    if (value <= 50) return "#E9F14F";
+    if (value <= 60) return "#CDDD24";
+    if (value <= 70) return "#64E730";
+    if (value <= 80) return "#32CD32";
+    if (value <= 90) return "#228B22";
+    return "#008000";
   };
 
   const calculateLevel1Progress = (items: Level2Item[]): { completed: number; total: number; percentage: number } => {
@@ -275,10 +319,24 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
     return { completed, total, percentage: Math.round((completed / total) * 100) };
   };
 
-  const getProgressColor = (percentage: number): string => {
-    if (percentage >= 100) return "#13715B";
-    if (percentage >= 50) return "#13715B";
-    return "#13715B";
+  const getOwnerName = (item: Level2Item): string => {
+    if (item.owner_name || item.owner_surname) {
+      return `${item.owner_name || ""} ${item.owner_surname || ""}`.trim();
+    }
+    return "Not assigned";
+  };
+
+  const getSubcontrolsCount = (item: Level2Item): number => {
+    return item.items?.length || 0;
+  };
+
+  const calculateItemCompletion = (item: Level2Item): number => {
+    if (!item.items || item.items.length === 0) {
+      // If no subitems, base completion on status
+      return item.status === "Implemented" ? 100 : 0;
+    }
+    const completed = item.items.filter((sub) => sub.status === "Implemented").length;
+    return Math.round((completed / item.items.length) * 100);
   };
 
   if (loading) {
@@ -308,17 +366,27 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
     );
   }
 
+  // Table columns for Level 2 items
+  const columns = [
+    { name: `${data.level_2_name} Name` },
+    { name: "Owner" },
+    { name: data.hierarchy_type === "three_level" ? `# of ${data.level_3_name}s` : "Status" },
+    { name: "Completion" },
+  ];
+
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
         <Box>
           <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#1A1919" }}>
             {data.name || frameworkName}
           </Typography>
-          <Typography sx={{ fontSize: "13px", color: "#666666", mt: 0.5 }}>
-            {data.description}
-          </Typography>
+          {data.description && (
+            <Typography sx={{ fontSize: "13px", color: "#666666", mt: 0.5 }}>
+              {data.description}
+            </Typography>
+          )}
         </Box>
         <Tooltip title="Refresh">
           <IconButton onClick={handleRefresh} size="small" sx={{ color: "#666666" }}>
@@ -327,85 +395,46 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
         </Tooltip>
       </Box>
 
-      {/* Progress Summary Card */}
-      {progress && progress.overall && progress.level2 && (
+      {/* Progress Stats Card - Matching app's StatsCard */}
+      {progress && progress.overall && (
         <Box
           sx={{
-            border: "1px solid #E5E7EB",
+            border: "1px solid #EAECF0",
             borderRadius: "4px",
-            p: 2.5,
+            p: 2,
             mb: 3,
-            mt: 2,
+            backgroundColor: "#FAFAFA",
           }}
         >
-          <Box sx={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-            {/* Overall Progress */}
-            <Box>
-              <Typography sx={{ fontSize: "12px", color: "#666666", mb: 1 }}>
-                Overall Progress
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box sx={{ position: "relative", display: "inline-flex" }}>
-                  <CircularProgress
-                    variant="determinate"
-                    value={100}
-                    size={50}
-                    thickness={4}
-                    sx={{ color: "#F3F4F6" }}
-                  />
-                  <CircularProgress
-                    variant="determinate"
-                    value={progress.overall.percentage ?? 0}
-                    size={50}
-                    thickness={4}
-                    sx={{
-                      color: colors.primary,
-                      position: "absolute",
-                      left: 0,
-                    }}
-                  />
-                </Box>
-                <Typography sx={{ fontSize: "24px", fontWeight: 600, color: "#1A1919" }}>
-                  {progress.overall.percentage ?? 0}%
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Controls Count */}
-            <Box>
-              <Typography sx={{ fontSize: "12px", color: "#666666", mb: 1 }}>
-                {data.level_2_name}s
-              </Typography>
-              <Typography sx={{ fontSize: "24px", fontWeight: 600, color: colors.primary }}>
-                {progress.level2.completed ?? 0}
-              </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#666666" }}>
-                of {progress.level2.total ?? 0} implemented
-              </Typography>
-            </Box>
-
-            {/* Assigned Count */}
-            <Box>
-              <Typography sx={{ fontSize: "12px", color: "#666666", mb: 1 }}>
-                Assigned
-              </Typography>
-              <Typography sx={{ fontSize: "24px", fontWeight: 600, color: colors.primary }}>
-                {progress.overall.assigned ?? 0}
-              </Typography>
-              <Typography sx={{ fontSize: "12px", color: "#666666" }}>
-                of {progress.overall.total ?? 0} have owners
-              </Typography>
-            </Box>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+            <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#1A1919" }}>
+              Compliance Progress
+            </Typography>
+            <Typography sx={{ fontSize: "24px", fontWeight: 600, color: colors.primary }}>
+              {progress.overall.percentage ?? 0}%
+            </Typography>
           </Box>
-
-          {/* Completed text */}
-          <Typography sx={{ fontSize: "13px", color: "#1A1919", mt: 2 }}>
-            {progress.overall.completed ?? 0} / {progress.overall.total ?? 0} completed
+          <LinearProgress
+            variant="determinate"
+            value={progress.overall.percentage ?? 0}
+            sx={{
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: "#E5E7EB",
+              mb: 1,
+              "& .MuiLinearProgress-bar": {
+                backgroundColor: getProgressColor(progress.overall.percentage ?? 0),
+                borderRadius: 4,
+              },
+            }}
+          />
+          <Typography sx={{ fontSize: "13px", color: "#666666" }}>
+            {progress.overall.completed ?? 0} of {progress.overall.total ?? 0} {data.level_2_name}s completed
           </Typography>
         </Box>
       )}
 
-      {/* Framework Structure - Accordions */}
+      {/* Framework Structure - Accordions with Tables */}
       {data.structure?.map((level1, idx) => {
         const level1Progress = calculateLevel1Progress(level1.items);
         const isExpanded = expandedLevel1 === idx;
@@ -416,50 +445,46 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
             expanded={isExpanded}
             onChange={() => setExpandedLevel1(isExpanded ? null : idx)}
             sx={{
-              mb: 2,
+              mb: "9px",
               "&:before": { display: "none" },
               boxShadow: "none",
-              border: "1px solid #E5E7EB",
+              border: "1px solid #EAECF0",
               borderRadius: "4px !important",
               overflow: "hidden",
             }}
             disableGutters
           >
             <AccordionSummary
-              expandIcon={
-                <ChevronUp
-                  size={20}
-                  style={{
-                    color: "#666666",
-                    transform: isExpanded ? "rotate(0deg)" : "rotate(180deg)",
-                    transition: "transform 0.2s",
-                  }}
-                />
-              }
               sx={{
-                px: 2.5,
-                py: 1.5,
-                minHeight: "auto",
+                px: 2,
+                backgroundColor: "#FAFAFA",
+                flexDirection: "row-reverse",
+                "& .MuiAccordionSummary-expandIconWrapper": {
+                  transform: "rotate(-90deg)",
+                  transition: "transform 0.3s",
+                },
+                "& .MuiAccordionSummary-expandIconWrapper.Mui-expanded": {
+                  transform: "rotate(0deg)",
+                },
                 "& .MuiAccordionSummary-content": {
-                  my: 0,
-                  mr: 2,
+                  ml: 1,
                 },
               }}
+              expandIcon={<ChevronRight size={20} style={{ color: "#666666" }} />}
             >
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", pr: 2 }}>
-                <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#1A1919" }}>
-                  {level1.title}
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <Typography sx={{ fontSize: "13px", fontWeight: 500, color: "#1A1919" }}>
+                  {level1.order_no}. {level1.title}
                 </Typography>
-
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Box sx={{ width: 100 }}>
+                  <Box sx={{ width: 80 }}>
                     <LinearProgress
                       variant="determinate"
                       value={level1Progress.percentage}
                       sx={{
                         height: 6,
                         borderRadius: 3,
-                        backgroundColor: "#F3F4F6",
+                        backgroundColor: "#E5E7EB",
                         "& .MuiLinearProgress-bar": {
                           backgroundColor: getProgressColor(level1Progress.percentage),
                           borderRadius: 3,
@@ -467,92 +492,108 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
                       }}
                     />
                   </Box>
-                  <Typography sx={{ fontSize: "13px", color: "#666666", minWidth: 35, textAlign: "right" }}>
-                    {level1Progress.percentage}%
-                  </Typography>
-                  <Typography sx={{ fontSize: "13px", color: "#666666", minWidth: 40 }}>
-                    {level1Progress.completed} / {level1Progress.total}
+                  <Typography sx={{ fontSize: "13px", color: "#666666", minWidth: 55 }}>
+                    {level1Progress.completed}/{level1Progress.total}
                   </Typography>
                 </Box>
               </Box>
             </AccordionSummary>
 
-            <AccordionDetails sx={{ px: 2.5, py: 2, borderTop: "1px solid #E5E7EB" }}>
-              {level1.description && (
-                <Typography sx={{ fontSize: "13px", color: "#666666", mb: 2 }}>
-                  {level1.description}
-                </Typography>
-              )}
+            <AccordionDetails sx={{ p: 0 }}>
+              <TableContainer>
+                <Table>
+                  <TableHead sx={tableStyles.tableHead}>
+                    <TableRow>
+                      {columns.map((col, index) => (
+                        <TableCell key={index} sx={tableStyles.headerCell}>
+                          {col.name}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {level1.items?.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} sx={{ ...tableStyles.cell, textAlign: "center" }}>
+                          <Typography sx={{ color: "#666", fontSize: "13px" }}>
+                            No {data.level_2_name}s found
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {level1.items
+                      ?.sort((a, b) => (a.order_no ?? 0) - (b.order_no ?? 0))
+                      .map((level2) => {
+                        const completion = calculateItemCompletion(level2);
+                        const isFlashing = flashingRow === level2.id;
 
-              <Grid container spacing={2}>
-                {level1.items?.map((level2) => (
-                  <Grid item xs={12} key={level2.id}>
-                    <Box
-                      onClick={() => handleItemClick(level2)}
-                      sx={{
-                        p: 2,
-                        cursor: "pointer",
-                        border: "1px solid #E5E7EB",
-                        borderLeft: `4px solid ${getStatusColor(level2.status || "Not started")}`,
-                        borderRadius: "4px",
-                        backgroundColor: "#fff",
-                        transition: "all 0.2s",
-                        "&:hover": {
-                          backgroundColor: "#FBFBFB",
-                          borderColor: "#d0d5dd",
-                        },
-                      }}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
+                        return (
+                          <TableRow
+                            key={level2.id}
+                            onClick={() => handleItemClick(level2)}
                             sx={{
-                              fontSize: "13px",
-                              fontWeight: 500,
-                              color: "#1A1919",
-                              mb: 0.5,
+                              cursor: "pointer",
+                              backgroundColor: isFlashing ? "#e3f5e6" : "transparent",
+                              transition: "background-color 0.3s",
+                              "&:hover": {
+                                backgroundColor: isFlashing ? "#e3f5e6" : "#FBFBFB",
+                              },
                             }}
                           >
-                            {level2.title}
-                          </Typography>
-                          {level2.description && (
-                            <Typography
-                              sx={{
-                                fontSize: "12px",
-                                color: "#666666",
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              {level2.description}
-                            </Typography>
-                          )}
-                        </Box>
-
-                        <Chip
-                          label={level2.status || "Not started"}
-                          size="small"
-                          sx={{
-                            backgroundColor: getStatusBg(level2.status || "Not started"),
-                            color: getStatusColor(level2.status || "Not started"),
-                            fontWeight: 500,
-                            fontSize: "11px",
-                            height: 24,
-                            flexShrink: 0,
-                            border: "none",
-                            "& .MuiChip-label": {
-                              px: 1.5,
-                            },
-                          }}
-                        />
-                      </Box>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
+                            <TableCell sx={tableStyles.descriptionCell}>
+                              <Typography component="span" sx={{ fontSize: "13px" }}>
+                                {level1.order_no}.{level2.order_no} {level2.title}{" "}
+                                {level2.description && (
+                                  <Typography
+                                    component="span"
+                                    sx={{ color: "grey", fontSize: "13px" }}
+                                  >
+                                    ({level2.description.length > 60
+                                      ? `${level2.description.substring(0, 60)}...`
+                                      : level2.description})
+                                  </Typography>
+                                )}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={tableStyles.cell}>
+                              <Typography sx={{ fontSize: "13px" }}>
+                                {getOwnerName(level2)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={tableStyles.cell}>
+                              <Typography sx={{ fontSize: "13px" }}>
+                                {data.hierarchy_type === "three_level"
+                                  ? `${getSubcontrolsCount(level2)} ${data.level_3_name}s`
+                                  : level2.status || "Not started"}
+                              </Typography>
+                            </TableCell>
+                            <TableCell sx={tableStyles.cell}>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Box sx={{ width: "100%", minWidth: 60 }}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={completion}
+                                    sx={{
+                                      height: 8,
+                                      borderRadius: 4,
+                                      backgroundColor: "#E5E7EB",
+                                      "& .MuiLinearProgress-bar": {
+                                        backgroundColor: getProgressColor(completion),
+                                      },
+                                    }}
+                                  />
+                                </Box>
+                                <Typography sx={{ fontSize: "13px", minWidth: 35 }}>
+                                  {completion}%
+                                </Typography>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </AccordionDetails>
           </Accordion>
         );
@@ -569,7 +610,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
           level_3_name: data.level_3_name,
         } : null}
         projectId={projectId}
-        onSave={handleItemSave}
+        onSave={() => handleItemSave(selectedItem?.id)}
         apiServices={api}
       />
     </Box>
