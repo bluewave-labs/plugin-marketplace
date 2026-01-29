@@ -144,23 +144,39 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
 
   const api = apiServices || {
     get: async (url: string) => {
-      const response = await fetch(`/api${url}`);
+      const response = await fetch(`/api${url}`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      }
       return { data: await response.json() };
     },
     post: async (url: string, body?: any) => {
       const response = await fetch(`/api${url}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      }
       return { data: await response.json() };
     },
     patch: async (url: string, body?: any) => {
       const response = await fetch(`/api${url}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      }
       return { data: await response.json() };
     },
   };
@@ -178,8 +194,20 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
       const frameworkData = dataResponse.data.data || dataResponse.data;
       const progressData = progressResponse.data.data || progressResponse.data;
 
+      // Check if the responses contain error messages instead of actual data
+      if (frameworkData.message && !frameworkData.structure) {
+        throw new Error(frameworkData.message);
+      }
+
       setData(frameworkData);
-      setProgress(progressData);
+
+      // Only set progress if it has the expected structure
+      if (progressData && progressData.level2 && progressData.overall) {
+        setProgress(progressData);
+      } else {
+        // Set default progress if API returns unexpected structure
+        setProgress(null);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load framework data");
     } finally {
@@ -281,7 +309,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
       </Box>
 
       {/* Progress Summary */}
-      {progress && (
+      {progress && progress.overall && progress.level2 && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Grid container spacing={3}>
@@ -293,7 +321,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
                   <Box sx={{ position: "relative", display: "inline-flex", my: 1 }}>
                     <CircularProgress
                       variant="determinate"
-                      value={progress.overall.percentage}
+                      value={progress.overall.percentage ?? 0}
                       size={80}
                       thickness={4}
                       sx={{ color: colors.primary }}
@@ -311,12 +339,12 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
                       }}
                     >
                       <Typography variant="h6" fontWeight={600}>
-                        {progress.overall.percentage}%
+                        {progress.overall.percentage ?? 0}%
                       </Typography>
                     </Box>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    {progress.overall.completed} / {progress.overall.total} completed
+                    {progress.overall.completed ?? 0} / {progress.overall.total ?? 0} completed
                   </Typography>
                 </Box>
               </Grid>
@@ -327,10 +355,10 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
                     {data.level_2_name}s
                   </Typography>
                   <Typography variant="h4" fontWeight={600} sx={{ my: 1, color: colors.primary }}>
-                    {progress.level2.completed}
+                    {progress.level2.completed ?? 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    of {progress.level2.total} implemented
+                    of {progress.level2.total ?? 0} implemented
                   </Typography>
                 </Box>
               </Grid>
@@ -341,10 +369,10 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
                     Assigned
                   </Typography>
                   <Typography variant="h4" fontWeight={600} sx={{ my: 1, color: colors.info }}>
-                    {progress.overall.assigned}
+                    {progress.overall.assigned ?? 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    of {progress.overall.total} have owners
+                    of {progress.overall.total ?? 0} have owners
                   </Typography>
                 </Box>
               </Grid>
