@@ -1,51 +1,35 @@
 /**
  * Framework Detail Drawer
  *
- * Shows detailed view of a custom framework including:
- * - Framework metadata
- * - Full structure (categories → controls → subcontrols)
- * - Linked projects with progress
+ * Shows detailed view of a custom framework.
+ * Matches VerifyWise standard drawer patterns.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Drawer,
   Box,
   Typography,
-  IconButton,
-  Chip,
+  Drawer,
+  Button,
   Divider,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  LinearProgress,
+  Stack,
+  Chip,
   CircularProgress,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Paper,
-  Tooltip,
+  LinearProgress,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import {
-  X,
-  ChevronDown,
+  X as CloseIcon,
   Building2,
   Layers,
-  FolderOpen,
   CheckCircle,
-  Clock,
   Users,
-  FileText,
-  ExternalLink,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
-import {
-  colors,
-  textColors,
-  bgColors,
-  borderColors,
-} from "./theme";
+import { colors } from "./theme";
 
 interface FrameworkDetailDrawerProps {
   open: boolean;
@@ -84,9 +68,6 @@ interface Level2Item {
   id: number;
   title: string;
   description?: string;
-  summary?: string;
-  questions?: string[];
-  evidence_examples?: string[];
   order_no: number;
   items?: Level3Item[];
 }
@@ -117,14 +98,14 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
   onClose,
   frameworkId,
   apiServices,
-  onNavigateToProject,
+  onNavigateToProject: _onNavigateToProject,
 }) => {
   const [details, setDetails] = useState<FrameworkDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedLevel1, setExpandedLevel1] = useState<number | false>(false);
+  const [activeTab, setActiveTab] = useState("details");
+  const [expandedLevel1, setExpandedLevel1] = useState<Set<number>>(new Set());
 
-  // Helper to get auth token from localStorage (redux-persist)
   const getAuthToken = (): string | null => {
     try {
       const persistedRoot = localStorage.getItem("persist:root");
@@ -167,27 +148,36 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [frameworkId, api]);
+  }, [frameworkId]);
 
   useEffect(() => {
     if (open && frameworkId) {
       loadDetails();
+      setActiveTab("details");
+      setExpandedLevel1(new Set());
     }
   }, [open, frameworkId, loadDetails]);
 
   const handleClose = () => {
     setDetails(null);
-    setExpandedLevel1(false);
+    setExpandedLevel1(new Set());
     onClose();
   };
 
-  const countItems = (
-    structure: Level1Item[]
-  ): { level1: number; level2: number; level3: number } => {
-    let level1 = 0;
-    let level2 = 0;
-    let level3 = 0;
+  const toggleLevel1 = (id: number) => {
+    setExpandedLevel1((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
+  const countItems = (structure: Level1Item[]) => {
+    let level1 = 0, level2 = 0, level3 = 0;
     for (const l1 of structure || []) {
       level1++;
       for (const l2 of l1.items || []) {
@@ -195,15 +185,14 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
         level3 += (l2.items || []).length;
       }
     }
-
     return { level1, level2, level3 };
   };
 
   const getProgressColor = (percentage: number): string => {
-    if (percentage >= 100) return colors.success;
+    if (percentage >= 100) return "#16A34A";
     if (percentage >= 50) return colors.primary;
-    if (percentage >= 25) return colors.warning;
-    return textColors.secondary;
+    if (percentage >= 25) return "#F59E0B";
+    return "#94A3B8";
   };
 
   return (
@@ -211,427 +200,377 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
       anchor="right"
       open={open}
       onClose={handleClose}
-      PaperProps={{
-        sx: { width: { xs: "100%", sm: 600 }, maxWidth: "100%" },
+      sx={{
+        "& .MuiDrawer-paper": {
+          width: 600,
+          margin: 0,
+          borderRadius: 0,
+          overflowX: "hidden",
+        },
       }}
     >
       {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          p: 2.5,
-          borderBottom: `1px solid ${borderColors.light}`,
-          background: bgColors.modalHeader,
-        }}
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        padding="15px 20px"
       >
-        <Typography sx={{ fontSize: "15px", fontWeight: 600, color: textColors.primary }}>
-          Framework Details
+        <Typography fontSize={15} fontWeight={700}>
+          {loading ? "Loading..." : details?.name || "Framework Details"}
         </Typography>
-        <IconButton onClick={handleClose} size="small" sx={{ "&:hover": { bgcolor: bgColors.hover } }}>
-          <X size={20} color={textColors.muted} />
-        </IconButton>
+        <Button
+          onClick={handleClose}
+          sx={{ minWidth: 0, padding: "5px" }}
+        >
+          <CloseIcon size={20} color="#667085" />
+        </Button>
+      </Stack>
+      <Divider />
+
+      {/* Tabs */}
+      <Box sx={{ padding: "0 20px" }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => setActiveTab(value)}
+          sx={{
+            minHeight: 40,
+            "& .MuiTab-root": {
+              minHeight: 40,
+              fontSize: 13,
+              textTransform: "none",
+              color: "#667085",
+              "&.Mui-selected": {
+                color: colors.primary,
+              },
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: colors.primary,
+            },
+          }}
+        >
+          <Tab value="details" label="Details" />
+          <Tab value="structure" label="Structure" />
+          <Tab value="projects" label={`Projects (${details?.linkedProjects?.length || 0})`} />
+        </Tabs>
       </Box>
+      <Divider />
 
       {/* Content */}
-      <Box sx={{ flex: 1, overflow: "auto", p: 0 }}>
+      <Box sx={{ flex: 1, overflow: "auto" }}>
         {loading ? (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              py: 8,
-            }}
-          >
-            <CircularProgress />
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress size={24} sx={{ color: colors.primary }} />
           </Box>
         ) : error ? (
-          <Alert severity="error" sx={{ m: 2 }}>
-            {error}
-          </Alert>
+          <Box sx={{ padding: "15px 20px" }}>
+            <Alert severity="error">{error}</Alert>
+          </Box>
         ) : details ? (
           <>
-            {/* Framework Info */}
-            <Box sx={{ p: 3 }}>
-              <Typography variant="h5" fontWeight={600} gutterBottom>
-                {details.name}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                paragraph
-              >
-                {details.description}
-              </Typography>
+            {/* Details Tab */}
+            {activeTab === "details" && (
+              <Stack sx={{ padding: "15px 20px", gap: "15px" }}>
+                {/* Description */}
+                {details.description && (
+                  <Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#344054", mb: 0.5 }}>
+                      Description
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: "#667085", lineHeight: 1.6 }}>
+                      {details.description}
+                    </Typography>
+                  </Box>
+                )}
 
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 3 }}>
-                <Chip
-                  icon={<Building2 size={14} />}
-                  label={
-                    details.is_organizational ? "Organizational" : "Project-level"
-                  }
-                  size="small"
-                  color={details.is_organizational ? "primary" : "default"}
-                  variant="outlined"
-                />
-                <Chip
-                  icon={<Layers size={14} />}
-                  label={
-                    details.hierarchy_type === "three_level"
-                      ? "3 Levels"
-                      : "2 Levels"
-                  }
-                  size="small"
-                  variant="outlined"
-                />
-                <Chip
-                  label={`v${details.version}`}
-                  size="small"
-                  variant="outlined"
-                />
-              </Box>
-
-              {/* Structure Summary */}
-              {details.structure && (
-                <Paper
-                  variant="outlined"
-                  sx={{ p: 2, bgcolor: "#f8fafc", mb: 3 }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    fontWeight={600}
-                    gutterBottom
-                  >
-                    Structure Summary
+                {/* Type & Hierarchy */}
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#344054", mb: 1 }}>
+                    Type
                   </Typography>
-                  <Box sx={{ display: "flex", gap: 4 }}>
-                    <Box>
-                      <Typography variant="h4" fontWeight={600}>
-                        {countItems(details.structure).level1}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {details.level_1_name}s
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="h4" fontWeight={600}>
-                        {countItems(details.structure).level2}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {details.level_2_name}s
-                      </Typography>
-                    </Box>
-                    {details.hierarchy_type === "three_level" && (
-                      <Box>
-                        <Typography variant="h4" fontWeight={600}>
-                          {countItems(details.structure).level3}
+                  <Stack direction="row" spacing={1}>
+                    <Chip
+                      icon={<Building2 size={12} />}
+                      label={details.is_organizational ? "Organizational" : "Project-level"}
+                      size="small"
+                      sx={{
+                        height: 24,
+                        fontSize: 11,
+                        backgroundColor: details.is_organizational ? "#ECFDF3" : "#F2F4F7",
+                        color: details.is_organizational ? "#027A48" : "#344054",
+                        border: details.is_organizational ? "1px solid #A6F4C5" : "1px solid #E4E7EC",
+                        "& .MuiChip-icon": {
+                          color: details.is_organizational ? "#027A48" : "#667085",
+                        },
+                      }}
+                    />
+                    <Chip
+                      icon={<Layers size={12} />}
+                      label={details.hierarchy_type === "three_level" ? "3 Levels" : "2 Levels"}
+                      size="small"
+                      sx={{
+                        height: 24,
+                        fontSize: 11,
+                        backgroundColor: "#F2F4F7",
+                        color: "#344054",
+                        border: "1px solid #E4E7EC",
+                        "& .MuiChip-icon": { color: "#667085" },
+                      }}
+                    />
+                  </Stack>
+                </Box>
+
+                {/* Version */}
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#344054", mb: 0.5 }}>
+                    Version
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: "#667085" }}>
+                    v{details.version}
+                  </Typography>
+                </Box>
+
+                {/* Created */}
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#344054", mb: 0.5 }}>
+                    Created
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: "#667085" }}>
+                    {new Date(details.created_at).toLocaleDateString()}
+                  </Typography>
+                </Box>
+
+                {/* Structure Summary */}
+                {details.structure && (
+                  <Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#344054", mb: 1 }}>
+                      Structure Summary
+                    </Typography>
+                    <Stack direction="row" spacing={2}>
+                      <Box sx={{ textAlign: "center", flex: 1, p: 1.5, backgroundColor: "#F9FAFB", borderRadius: "4px", border: "1px solid #EAECF0" }}>
+                        <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#101828" }}>
+                          {countItems(details.structure).level1}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {details.level_3_name}s
+                        <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                          {details.level_1_name}s
                         </Typography>
                       </Box>
-                    )}
+                      <Box sx={{ textAlign: "center", flex: 1, p: 1.5, backgroundColor: "#F9FAFB", borderRadius: "4px", border: "1px solid #EAECF0" }}>
+                        <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#101828" }}>
+                          {countItems(details.structure).level2}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                          {details.level_2_name}s
+                        </Typography>
+                      </Box>
+                      {details.hierarchy_type === "three_level" && details.level_3_name && (
+                        <Box sx={{ textAlign: "center", flex: 1, p: 1.5, backgroundColor: "#F9FAFB", borderRadius: "4px", border: "1px solid #EAECF0" }}>
+                          <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#101828" }}>
+                            {countItems(details.structure).level3}
+                          </Typography>
+                          <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                            {details.level_3_name}s
+                          </Typography>
+                        </Box>
+                      )}
+                    </Stack>
                   </Box>
-                </Paper>
-              )}
-            </Box>
+                )}
+              </Stack>
+            )}
 
-            <Divider />
-
-            {/* Linked Projects */}
-            <Box sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                <FolderOpen
-                  size={18}
-                  style={{ verticalAlign: "middle", marginRight: 8 }}
-                />
-                Linked Projects ({details.linkedProjects?.length || 0})
-              </Typography>
-
-              {details.linkedProjects?.length === 0 ? (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  This framework hasn't been added to any projects yet.
-                </Alert>
-              ) : (
-                <List sx={{ mt: 1 }}>
-                  {details.linkedProjects?.map((project) => (
-                    <Paper
-                      key={project.project_framework_id}
-                      variant="outlined"
-                      sx={{ mb: 2, overflow: "hidden" }}
-                    >
-                      <ListItem sx={{ py: 2 }}>
-                        <ListItemText
-                          primary={
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                              }}
-                            >
-                              <Typography variant="subtitle2" fontWeight={500}>
-                                {project.project_title}
-                              </Typography>
-                              {project.is_organizational && (
-                                <Chip
-                                  label="Org"
-                                  size="small"
-                                  sx={{
-                                    height: 20,
-                                    fontSize: "0.7rem",
-                                    bgcolor: `${colors.primary}15`,
-                                    color: colors.primary,
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          }
-                          secondary={
-                            <Box sx={{ mt: 1 }}>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 2,
-                                  mb: 1,
-                                }}
-                              >
-                                <Box sx={{ flex: 1 }}>
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={project.progress.percentage}
-                                    sx={{
-                                      height: 8,
-                                      borderRadius: 4,
-                                      bgcolor: "#e2e8f0",
-                                      "& .MuiLinearProgress-bar": {
-                                        bgcolor: getProgressColor(
-                                          project.progress.percentage
-                                        ),
-                                      },
-                                    }}
-                                  />
-                                </Box>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={500}
-                                  sx={{
-                                    color: getProgressColor(
-                                      project.progress.percentage
-                                    ),
-                                    minWidth: 45,
-                                  }}
-                                >
-                                  {project.progress.percentage}%
-                                </Typography>
-                              </Box>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  gap: 2,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                  }}
-                                >
-                                  <CheckCircle
-                                    size={14}
-                                    color={colors.success}
-                                  />
-                                  <Typography variant="caption">
-                                    {project.progress.completed}/
-                                    {project.progress.total} completed
-                                  </Typography>
-                                </Box>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                  }}
-                                >
-                                  <Users
-                                    size={14}
-                                    color={colors.info}
-                                  />
-                                  <Typography variant="caption">
-                                    {project.progress.assigned} assigned
-                                  </Typography>
-                                </Box>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                  }}
-                                >
-                                  <Clock
-                                    size={14}
-                                    color={textColors.muted}
-                                  />
-                                  <Typography variant="caption">
-                                    Added{" "}
-                                    {new Date(
-                                      project.added_at
-                                    ).toLocaleDateString()}
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            </Box>
-                          }
-                        />
-                        {onNavigateToProject && (
-                          <ListItemSecondaryAction>
-                            <Tooltip title="View in project">
-                              <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={() =>
-                                  onNavigateToProject(
-                                    project.project_id,
-                                    details.id
-                                  )
-                                }
-                              >
-                                <ExternalLink size={18} />
-                              </IconButton>
-                            </Tooltip>
-                          </ListItemSecondaryAction>
-                        )}
-                      </ListItem>
-                    </Paper>
-                  ))}
-                </List>
-              )}
-            </Box>
-
-            <Divider />
-
-            {/* Framework Structure */}
-            <Box sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                <FileText
-                  size={18}
-                  style={{ verticalAlign: "middle", marginRight: 8 }}
-                />
-                Framework Structure
-              </Typography>
-
-              <Box sx={{ mt: 2 }}>
-                {details.structure?.map((level1, idx) => (
-                  <Accordion
+            {/* Structure Tab */}
+            {activeTab === "structure" && (
+              <Stack sx={{ padding: "15px 20px", gap: "10px" }}>
+                {details.structure?.map((level1) => (
+                  <Box
                     key={level1.id}
-                    expanded={expandedLevel1 === idx}
-                    onChange={() =>
-                      setExpandedLevel1(expandedLevel1 === idx ? false : idx)
-                    }
                     sx={{
-                      mb: 1,
-                      "&:before": { display: "none" },
-                      boxShadow: "none",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "8px !important",
+                      border: "1px solid #EAECF0",
+                      borderRadius: "4px",
                       overflow: "hidden",
                     }}
                   >
-                    <AccordionSummary
-                      expandIcon={<ChevronDown size={18} />}
+                    <Box
+                      onClick={() => toggleLevel1(level1.id)}
                       sx={{
-                        bgcolor: "#f8fafc",
-                        "&:hover": { bgcolor: "#f1f5f9" },
-                        minHeight: 48,
-                        "& .MuiAccordionSummary-content": { my: 1 },
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "10px 12px",
+                        backgroundColor: "#F9FAFB",
+                        cursor: "pointer",
+                        "&:hover": { backgroundColor: "#F3F4F6" },
                       }}
                     >
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          width: "100%",
-                        }}
-                      >
-                        <Typography variant="subtitle2" fontWeight={500}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {expandedLevel1.has(level1.id) ? (
+                          <ChevronDown size={14} color="#667085" />
+                        ) : (
+                          <ChevronRight size={14} color="#667085" />
+                        )}
+                        <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#344054" }}>
                           {level1.title}
                         </Typography>
-                        <Chip
-                          label={`${level1.items?.length || 0} ${details.level_2_name}s`}
-                          size="small"
-                          sx={{
-                            height: 20,
-                            fontSize: "0.7rem",
-                            bgcolor: "#e2e8f0",
-                          }}
-                        />
                       </Box>
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ p: 2, bgcolor: "#fff" }}>
-                      {level1.description && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 2 }}
-                        >
-                          {level1.description}
-                        </Typography>
-                      )}
+                      <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                        {level1.items?.length || 0} {details.level_2_name}s
+                      </Typography>
+                    </Box>
 
-                      {level1.items?.map((level2) => (
-                        <Paper
-                          key={level2.id}
-                          variant="outlined"
-                          sx={{ p: 2, mb: 1, bgcolor: "#fafafa" }}
-                        >
-                          <Typography variant="body2" fontWeight={500}>
-                            {level2.title}
-                          </Typography>
-                          {level2.description && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              display="block"
-                              sx={{ mt: 0.5 }}
-                            >
-                              {level2.description}
-                            </Typography>
-                          )}
-
-                          {/* Level 3 items */}
-                          {level2.items && level2.items.length > 0 && (
+                    {expandedLevel1.has(level1.id) && (
+                      <Box sx={{ p: "8px 12px", backgroundColor: "#FFFFFF" }}>
+                        <Stack spacing={1}>
+                          {level1.items?.map((level2) => (
                             <Box
+                              key={level2.id}
                               sx={{
-                                mt: 1.5,
-                                pl: 2,
-                                borderLeft: "2px solid #e2e8f0",
+                                padding: "8px 10px",
+                                backgroundColor: "#F9FAFB",
+                                borderRadius: "4px",
+                                borderLeft: "2px solid #D0D5DD",
                               }}
                             >
-                              {level2.items.map((level3) => (
-                                <Box key={level3.id} sx={{ py: 0.5 }}>
-                                  <Typography variant="caption">
-                                    {level3.title}
-                                  </Typography>
-                                </Box>
-                              ))}
+                              <Typography sx={{ fontSize: 12, color: "#344054" }}>
+                                {level2.title}
+                              </Typography>
+                              {level2.items && level2.items.length > 0 && (
+                                <Typography sx={{ fontSize: 11, color: "#667085", mt: 0.5 }}>
+                                  {level2.items.length} {details.level_3_name}s
+                                </Typography>
+                              )}
                             </Box>
-                          )}
-                        </Paper>
-                      ))}
-                    </AccordionDetails>
-                  </Accordion>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                  </Box>
                 ))}
-              </Box>
-            </Box>
+              </Stack>
+            )}
+
+            {/* Projects Tab */}
+            {activeTab === "projects" && (
+              <Stack sx={{ padding: "15px 20px", gap: "10px" }}>
+                {!details.linkedProjects || details.linkedProjects.length === 0 ? (
+                  <Box
+                    sx={{
+                      padding: "20px",
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: "4px",
+                      border: "1px solid #EAECF0",
+                      textAlign: "center",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 13, color: "#667085" }}>
+                      Not linked to any projects yet
+                    </Typography>
+                  </Box>
+                ) : (
+                  details.linkedProjects.map((project) => (
+                    <Box
+                      key={project.project_framework_id}
+                      sx={{
+                        padding: "12px",
+                        backgroundColor: "#FFFFFF",
+                        borderRadius: "4px",
+                        border: "1px solid #EAECF0",
+                        "&:hover": { backgroundColor: "#F9FAFB" },
+                      }}
+                    >
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography sx={{ fontSize: 13, fontWeight: 500, color: "#344054" }}>
+                            {project.project_title}
+                          </Typography>
+                          {project.is_organizational && (
+                            <Chip
+                              label="Org"
+                              size="small"
+                              sx={{
+                                height: 16,
+                                fontSize: 9,
+                                backgroundColor: "#ECFDF3",
+                                color: "#027A48",
+                              }}
+                            />
+                          )}
+                        </Box>
+                        <Typography
+                          sx={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: getProgressColor(project.progress.percentage),
+                          }}
+                        >
+                          {project.progress.percentage}%
+                        </Typography>
+                      </Box>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={project.progress.percentage}
+                        sx={{
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: "#E5E7EB",
+                          mb: 1,
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: getProgressColor(project.progress.percentage),
+                            borderRadius: 2,
+                          },
+                        }}
+                      />
+
+                      <Box sx={{ display: "flex", gap: 2 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <CheckCircle size={10} color="#16A34A" />
+                          <Typography sx={{ fontSize: 10, color: "#667085" }}>
+                            {project.progress.completed}/{project.progress.total}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <Users size={10} color="#3B82F6" />
+                          <Typography sx={{ fontSize: 10, color: "#667085" }}>
+                            {project.progress.assigned} assigned
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))
+                )}
+              </Stack>
+            )}
           </>
         ) : null}
       </Box>
+
+      {/* Footer */}
+      <Stack
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "flex-end",
+          padding: "15px 20px",
+          marginTop: "auto",
+          borderTop: "1px solid #EAECF0",
+        }}
+      >
+        <Button
+          variant="outlined"
+          onClick={handleClose}
+          sx={{
+            height: 34,
+            fontSize: 13,
+            textTransform: "none",
+            borderColor: "#D0D5DD",
+            color: "#344054",
+            "&:hover": { backgroundColor: "#F9FAFB", borderColor: "#98A2B3" },
+          }}
+        >
+          Close
+        </Button>
+      </Stack>
     </Drawer>
   );
 };

@@ -11,14 +11,6 @@ import {
   Box,
   Typography,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
   IconButton,
   Tooltip,
   CircularProgress,
@@ -35,20 +27,14 @@ import {
 } from "@mui/material";
 import {
   Plus,
-  Trash2,
-  Eye,
   RefreshCw,
   FileJson,
-  Building2,
-  Layers,
-  Link as LinkIcon,
 } from "lucide-react";
 import {
   colors,
   textColors,
   fontSizes,
   buttonStyles,
-  tableStyles,
   cardStyles,
   emptyStateStyles,
   borderColors,
@@ -56,6 +42,7 @@ import {
 } from "./theme";
 import { FrameworkImportModal } from "./FrameworkImportModal";
 import { FrameworkDetailDrawer } from "./FrameworkDetailDrawer";
+import { FrameworksTable } from "./FrameworksTable";
 
 interface CustomFramework {
   id: number;
@@ -256,7 +243,7 @@ export const CustomFrameworkConfig: React.FC<CustomFrameworkConfigProps> = ({
   }
 
   return (
-    <Box>
+    <Box sx={{ pt: 8 }}>
       {/* Header */}
       <Box
         sx={{
@@ -361,168 +348,17 @@ export const CustomFrameworkConfig: React.FC<CustomFrameworkConfigProps> = ({
           </Button>
         </Box>
       ) : (
-        <TableContainer component={Paper} sx={tableStyles.frame}>
-          <Table>
-            <TableHead>
-              <TableRow sx={tableStyles.header.row}>
-                <TableCell sx={tableStyles.header.cell}>Framework</TableCell>
-                <TableCell sx={tableStyles.header.cell}>Type</TableCell>
-                <TableCell sx={tableStyles.header.cell}>Hierarchy</TableCell>
-                <TableCell sx={tableStyles.header.cell}>Structure</TableCell>
-                <TableCell sx={tableStyles.header.cell}>Created</TableCell>
-                <TableCell sx={{ ...tableStyles.header.cell, textAlign: "right" }}>
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {frameworks.map((fw) => (
-                <TableRow key={fw.id} sx={tableStyles.body.row}>
-                  <TableCell sx={tableStyles.body.cell}>
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: fontSizes.medium,
-                          fontWeight: 500,
-                          color: textColors.primary,
-                        }}
-                      >
-                        {fw.name}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: fontSizes.small,
-                          color: textColors.muted,
-                          mt: 0.25,
-                        }}
-                      >
-                        {fw.description?.substring(0, 60)}
-                        {fw.description && fw.description.length > 60
-                          ? "..."
-                          : ""}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={tableStyles.body.cell}>
-                    <Chip
-                      icon={<Building2 size={12} />}
-                      label={fw.is_organizational ? "Organizational" : "Project"}
-                      size="small"
-                      sx={{
-                        fontSize: fontSizes.small,
-                        fontWeight: 500,
-                        height: 24,
-                        backgroundColor: fw.is_organizational
-                          ? `${colors.primary}12`
-                          : "#f3f4f6",
-                        color: fw.is_organizational
-                          ? colors.primary
-                          : textColors.secondary,
-                        border: fw.is_organizational
-                          ? `1px solid ${colors.primary}30`
-                          : "1px solid #e5e7eb",
-                        "& .MuiChip-icon": {
-                          color: fw.is_organizational
-                            ? colors.primary
-                            : textColors.muted,
-                        },
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={tableStyles.body.cell}>
-                    <Chip
-                      icon={<Layers size={12} />}
-                      label={
-                        fw.hierarchy_type === "three_level"
-                          ? "3 Levels"
-                          : "2 Levels"
-                      }
-                      size="small"
-                      sx={{
-                        fontSize: fontSizes.small,
-                        fontWeight: 500,
-                        height: 24,
-                        backgroundColor: "#f3f4f6",
-                        color: textColors.secondary,
-                        border: "1px solid #e5e7eb",
-                        "& .MuiChip-icon": { color: textColors.muted },
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={tableStyles.body.cell}>
-                    <Typography sx={{ fontSize: fontSizes.medium }}>
-                      {fw.level1_count || 0} {fw.level_1_name}s,{" "}
-                      {fw.level2_count || 0} {fw.level_2_name}s
-                      {fw.hierarchy_type === "three_level" && fw.level3_count
-                        ? `, ${fw.level3_count} ${fw.level_3_name}s`
-                        : ""}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={tableStyles.body.cell}>
-                    <Typography sx={{ fontSize: fontSizes.medium }}>
-                      {new Date(fw.created_at).toLocaleDateString()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ ...tableStyles.body.cell, textAlign: "right" }}>
-                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      <Tooltip title="Add to Project">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedFramework(fw);
-                            setAddToProjectDialogOpen(true);
-                          }}
-                          sx={{
-                            width: 28,
-                            height: 28,
-                            "&:hover": { backgroundColor: bgColors.hover },
-                          }}
-                        >
-                          <LinkIcon size={14} color={textColors.muted} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="View Details">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setDetailFrameworkId(fw.id);
-                            setDetailDrawerOpen(true);
-                          }}
-                          sx={{
-                            width: 28,
-                            height: 28,
-                            "&:hover": { backgroundColor: bgColors.hover },
-                          }}
-                        >
-                          <Eye size={14} color={textColors.muted} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedFramework(fw);
-                            setDeleteDialogOpen(true);
-                          }}
-                          sx={{
-                            width: 28,
-                            height: 28,
-                            "&:hover": {
-                              backgroundColor: "#fef2f2",
-                              "& svg": { color: colors.error },
-                            },
-                          }}
-                        >
-                          <Trash2 size={14} color={textColors.muted} />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <FrameworksTable
+          frameworks={frameworks}
+          onViewDetails={(fw) => {
+            setDetailFrameworkId(fw.id);
+            setDetailDrawerOpen(true);
+          }}
+          onDelete={(fw) => {
+            setSelectedFramework(fw);
+            setDeleteDialogOpen(true);
+          }}
+        />
       )}
 
       {/* Import Modal */}

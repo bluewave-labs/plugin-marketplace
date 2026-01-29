@@ -3,7 +3,7 @@
  *
  * Multi-step wizard for importing custom compliance frameworks.
  * Supports JSON, Excel, and template library import methods.
- * Uses VerifyWise design system for consistency.
+ * Matches VerifyWise StandardModal design pattern.
  */
 
 import React, { useState, useCallback, useRef } from "react";
@@ -13,13 +13,7 @@ import {
   Typography,
   Alert,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  Card,
-  CardContent,
+  Modal,
   TextField,
   Stepper,
   Step,
@@ -32,7 +26,6 @@ import {
   TableRow,
   Paper,
   Chip,
-  Grid,
   InputAdornment,
   Tabs,
   Tab,
@@ -43,23 +36,11 @@ import {
   Upload,
   CheckCircle,
   X,
-  FileJson,
-  FileSpreadsheet,
   ChevronRight,
   ChevronLeft,
-  Library,
   Search,
   Edit3,
 } from "lucide-react";
-import {
-  colors,
-  textColors,
-  fontSizes,
-  buttonStyles,
-  tableStyles,
-  borderColors,
-  bgColors,
-} from "./theme";
 import {
   frameworkTemplates,
   templateCategories,
@@ -91,46 +72,7 @@ interface ParsedFramework {
   structure: any[];
 }
 
-const steps = ["Choose Method", "Configure Framework", "Preview & Import"];
-
-// Modal styling matching VerifyWise StandardModal
-const modalStyles = {
-  title: {
-    fontSize: "15px",
-    fontWeight: 600,
-    color: textColors.primary,
-  },
-  description: {
-    fontSize: fontSizes.medium,
-    color: textColors.muted,
-  },
-  header: {
-    background: bgColors.modalHeader,
-    borderBottom: `1px solid ${borderColors.light}`,
-    p: 2.5,
-  },
-  footer: {
-    background: bgColors.modalFooter,
-    borderTop: `1px solid ${borderColors.light}`,
-    px: 3,
-    py: 2,
-  },
-};
-
-// Card styling for method selection
-const methodCardStyle = (isSelected: boolean) => ({
-  height: "100%",
-  cursor: "pointer",
-  border: isSelected
-    ? `2px solid ${colors.primary}`
-    : `1px solid ${borderColors.default}`,
-  borderRadius: "8px",
-  transition: "all 0.2s",
-  "&:hover": {
-    borderColor: colors.primary,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  },
-});
+const steps = ["Choose Method", "Configure", "Preview & Import"];
 
 export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
   open,
@@ -141,7 +83,7 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
   const [activeStep, setActiveStep] = useState(0);
   const [importMethod, setImportMethod] = useState<
     "json" | "excel" | "template"
-  >("json");
+  >("template");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
@@ -213,7 +155,7 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
 
   const handleReset = useCallback(() => {
     setActiveStep(0);
-    setImportMethod("json");
+    setImportMethod("template");
     setJsonText("");
     setParsedFramework(null);
     setExcelFile(null);
@@ -534,137 +476,142 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
   };
 
   const renderMethodSelection = () => (
-    <Box sx={{ mt: 3 }}>
-      <Grid container spacing={2} sx={{ alignItems: "stretch" }}>
-        <Grid item xs={12} sm={4}>
-          <Card
-            sx={methodCardStyle(importMethod === "template")}
-            onClick={() => setImportMethod("template")}
-          >
-            <CardContent sx={{ textAlign: "center", py: 4, display: "flex", flexDirection: "column", alignItems: "center", minHeight: 180 }}>
-              <Library
-                size={40}
-                color={colors.primary}
-                style={{ marginBottom: 16 }}
-              />
-              <Typography
-                sx={{
-                  fontSize: fontSizes.large,
-                  fontWeight: 600,
-                  color: textColors.primary,
-                  mb: 1,
-                }}
-              >
-                Template Library
-              </Typography>
-              <Typography
-                sx={{ fontSize: fontSizes.medium, color: textColors.muted, mb: 2 }}
-              >
-                Choose from pre-built compliance frameworks
-              </Typography>
-              <Box sx={{ mt: "auto" }}>
-                <Chip
-                  label="Recommended"
-                  size="small"
-                  sx={{
-                    backgroundColor: `${colors.primary}12`,
-                    color: colors.primary,
-                    fontWeight: 500,
-                    fontSize: fontSizes.small,
-                  }}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+    <Box>
+      {/* Template Library */}
+      <Box
+        onClick={() => setImportMethod("template")}
+        sx={{
+          cursor: "pointer",
+          border: importMethod === "template" ? "2px solid #13715B" : "1px solid #E0E4E9",
+          borderRadius: "8px",
+          backgroundColor: importMethod === "template" ? "#F0FAF8" : "#FFFFFF",
+          padding: "16px",
+          marginBottom: "12px",
+          transition: "all 0.15s",
+          "&:hover": {
+            borderColor: "#13715B",
+            backgroundColor: "#F9FAFB",
+          },
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#101828" }}>
+              Template Library
+            </Typography>
+            <Chip
+              label="Recommended"
+              size="small"
+              sx={{
+                backgroundColor: "#ECFDF3",
+                color: "#027A48",
+                fontWeight: 500,
+                fontSize: 11,
+                height: 22,
+              }}
+            />
+          </Box>
+          {importMethod === "template" && <CheckCircle size={18} color="#13715B" />}
+        </Box>
+        <Typography sx={{ fontSize: 13, color: "#667085", mb: 1.5, lineHeight: 1.5 }}>
+          Choose from pre-built compliance frameworks like ISO 27001, SOC 2, NIST, and more
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Chip label="Quick Setup" size="small" sx={{ backgroundColor: "#F2F4F7", color: "#344054", fontSize: 11, height: 22 }} />
+          <Chip label="Best Practices" size="small" sx={{ backgroundColor: "#F2F4F7", color: "#344054", fontSize: 11, height: 22 }} />
+        </Box>
+      </Box>
 
-        <Grid item xs={12} sm={4}>
-          <Card
-            sx={methodCardStyle(importMethod === "json")}
-            onClick={() => setImportMethod("json")}
-          >
-            <CardContent sx={{ textAlign: "center", py: 4, display: "flex", flexDirection: "column", alignItems: "center", minHeight: 180 }}>
-              <FileJson
-                size={40}
-                color={colors.info}
-                style={{ marginBottom: 16 }}
-              />
-              <Typography
-                sx={{
-                  fontSize: fontSizes.large,
-                  fontWeight: 600,
-                  color: textColors.primary,
-                  mb: 1,
-                }}
-              >
-                JSON Import
-              </Typography>
-              <Typography
-                sx={{ fontSize: fontSizes.medium, color: textColors.muted }}
-              >
-                Paste or upload a JSON file with your framework
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* JSON Import */}
+      <Box
+        onClick={() => setImportMethod("json")}
+        sx={{
+          cursor: "pointer",
+          border: importMethod === "json" ? "2px solid #13715B" : "1px solid #E0E4E9",
+          borderRadius: "8px",
+          backgroundColor: importMethod === "json" ? "#F0FAF8" : "#FFFFFF",
+          padding: "16px",
+          marginBottom: "12px",
+          transition: "all 0.15s",
+          "&:hover": {
+            borderColor: "#13715B",
+            backgroundColor: "#F9FAFB",
+          },
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+          <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#101828" }}>
+            JSON Import
+          </Typography>
+          {importMethod === "json" && <CheckCircle size={18} color="#13715B" />}
+        </Box>
+        <Typography sx={{ fontSize: 13, color: "#667085", mb: 1.5, lineHeight: 1.5 }}>
+          Paste or upload a JSON file with your custom framework structure
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Chip label="Full Control" size="small" sx={{ backgroundColor: "#F2F4F7", color: "#344054", fontSize: 11, height: 22 }} />
+          <Chip label="Custom Structure" size="small" sx={{ backgroundColor: "#F2F4F7", color: "#344054", fontSize: 11, height: 22 }} />
+        </Box>
+      </Box>
 
-        <Grid item xs={12} sm={4}>
-          <Card
-            sx={methodCardStyle(importMethod === "excel")}
-            onClick={() => setImportMethod("excel")}
-          >
-            <CardContent sx={{ textAlign: "center", py: 4, display: "flex", flexDirection: "column", alignItems: "center", minHeight: 180 }}>
-              <FileSpreadsheet
-                size={40}
-                color={colors.success}
-                style={{ marginBottom: 16 }}
-              />
-              <Typography
-                sx={{
-                  fontSize: fontSizes.large,
-                  fontWeight: 600,
-                  color: textColors.primary,
-                  mb: 1,
-                }}
-              >
-                Excel Template
-              </Typography>
-              <Typography
-                sx={{ fontSize: fontSizes.medium, color: textColors.muted }}
-              >
-                Download template, fill it out, and upload
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* Excel Template */}
+      <Box
+        onClick={() => setImportMethod("excel")}
+        sx={{
+          cursor: "pointer",
+          border: importMethod === "excel" ? "2px solid #13715B" : "1px solid #E0E4E9",
+          borderRadius: "8px",
+          backgroundColor: importMethod === "excel" ? "#F0FAF8" : "#FFFFFF",
+          padding: "16px",
+          marginBottom: "12px",
+          transition: "all 0.15s",
+          "&:hover": {
+            borderColor: "#13715B",
+            backgroundColor: "#F9FAFB",
+          },
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+          <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#101828" }}>
+            Excel Template
+          </Typography>
+          {importMethod === "excel" && <CheckCircle size={18} color="#13715B" />}
+        </Box>
+        <Typography sx={{ fontSize: 13, color: "#667085", mb: 1.5, lineHeight: 1.5 }}>
+          Download our Excel template, fill it out with your framework data, and upload
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Chip label="Spreadsheet Format" size="small" sx={{ backgroundColor: "#F2F4F7", color: "#344054", fontSize: 11, height: 22 }} />
+          <Chip label="Easy Editing" size="small" sx={{ backgroundColor: "#F2F4F7", color: "#344054", fontSize: 11, height: 22 }} />
+        </Box>
+      </Box>
     </Box>
   );
 
   const renderTemplateSelection = () => (
-    <Box sx={{ mt: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Search */}
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          size="small"
-          placeholder="Search templates..."
-          value={templateSearchQuery}
-          onChange={(e) => setTemplateSearchQuery(e.target.value)}
-          fullWidth
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              fontSize: fontSizes.medium,
-            },
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={18} color={textColors.muted} />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
+      <TextField
+        size="small"
+        placeholder="Search templates..."
+        value={templateSearchQuery}
+        onChange={(e) => setTemplateSearchQuery(e.target.value)}
+        fullWidth
+        sx={{
+          mb: 2,
+          "& .MuiOutlinedInput-root": {
+            fontSize: 13,
+            backgroundColor: "#FFFFFF",
+          },
+        }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search size={16} color="#667085" />
+            </InputAdornment>
+          ),
+        }}
+      />
 
       {/* Category Tabs */}
       <Tabs
@@ -672,8 +619,15 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
         onChange={(_, value) => setTemplateCategory(value)}
         sx={{
           mb: 2,
-          borderBottom: `1px solid ${borderColors.default}`,
-          "& .MuiTab-root": { fontSize: fontSizes.medium },
+          minHeight: 36,
+          "& .MuiTab-root": {
+            fontSize: 12,
+            minHeight: 36,
+            textTransform: "none",
+            color: "#667085",
+            "&.Mui-selected": { color: "#13715B" },
+          },
+          "& .MuiTabs-indicator": { backgroundColor: "#13715B" },
         }}
       >
         {templateCategories.map((cat) => (
@@ -681,147 +635,85 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
         ))}
       </Tabs>
 
-      {/* Template Grid */}
-      <Box sx={{ maxHeight: 350, overflow: "auto" }}>
-        <Grid container spacing={2}>
-          {getFilteredTemplates().map((template) => (
-            <Grid item xs={12} md={6} key={template.id}>
-              <Card
-                sx={{
-                  cursor: "pointer",
-                  border:
-                    selectedTemplate?.id === template.id
-                      ? `2px solid ${colors.primary}`
-                      : `1px solid ${borderColors.default}`,
-                  borderRadius: "8px",
-                  transition: "all 0.2s",
-                  "&:hover": {
-                    borderColor: colors.primary,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  },
-                }}
-                onClick={() => handleSelectTemplate(template)}
-              >
-                <CardContent sx={{ p: 2 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      mb: 1,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: fontSizes.medium,
-                        fontWeight: 600,
-                        color: textColors.primary,
-                      }}
-                    >
-                      {template.name}
-                    </Typography>
-                    {selectedTemplate?.id === template.id && (
-                      <CheckCircle size={18} color={colors.primary} />
-                    )}
-                  </Box>
-                  <Typography
-                    sx={{
-                      fontSize: fontSizes.small,
-                      color: textColors.muted,
-                      mb: 1.5,
-                      minHeight: 36,
-                    }}
-                  >
-                    {template.description.length > 80
-                      ? `${template.description.substring(0, 80)}...`
-                      : template.description}
-                  </Typography>
-                  <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                    <Chip
-                      label={template.category}
-                      size="small"
-                      sx={{
-                        backgroundColor: "#f3f4f6",
-                        fontSize: "10px",
-                        height: 20,
-                      }}
-                    />
-                    <Chip
-                      label={
-                        template.framework.hierarchy.type === "three_level"
-                          ? "3 Levels"
-                          : "2 Levels"
-                      }
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: "10px", height: 20 }}
-                    />
-                    <Chip
-                      label={
-                        template.framework.is_organizational ? "Org" : "Project"
-                      }
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: "10px", height: 20 }}
-                    />
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-
-      {/* Selected Template Actions */}
-      {selectedTemplate && (
-        <Paper
-          sx={{
-            p: 2,
-            mt: 3,
-            backgroundColor: bgColors.subtle,
-            border: `1px solid ${borderColors.default}`,
-            borderRadius: "8px",
-          }}
-        >
-          <Typography
+      {/* Template List */}
+      <Box sx={{ flex: 1, overflow: "auto", pr: 1 }}>
+        {getFilteredTemplates().map((template) => (
+          <Box
+            key={template.id}
+            onClick={() => handleSelectTemplate(template)}
             sx={{
-              fontSize: fontSizes.medium,
-              fontWeight: 600,
-              color: textColors.primary,
-              mb: 0.5,
+              cursor: "pointer",
+              border: selectedTemplate?.id === template.id
+                ? "2px solid #13715B"
+                : "1px solid #E0E4E9",
+              borderRadius: "8px",
+              backgroundColor: selectedTemplate?.id === template.id ? "#F0FAF8" : "#FFFFFF",
+              padding: "16px",
+              marginBottom: "12px",
+              transition: "all 0.15s",
+              "&:hover": {
+                borderColor: "#13715B",
+                backgroundColor: "#F9FAFB",
+              },
             }}
           >
-            Selected: {selectedTemplate.name}
-          </Typography>
-          <Typography
-            sx={{ fontSize: fontSizes.small, color: textColors.muted, mb: 2 }}
-          >
-            {countItems(selectedTemplate.framework.structure).level1}{" "}
-            {selectedTemplate.framework.hierarchy.level1_name}s,{" "}
-            {countItems(selectedTemplate.framework.structure).level2}{" "}
-            {selectedTemplate.framework.hierarchy.level2_name}s
-            {selectedTemplate.framework.hierarchy.type === "three_level" &&
-              `, ${countItems(selectedTemplate.framework.structure).level3} ${selectedTemplate.framework.hierarchy.level3_name}s`}
-          </Typography>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="contained"
-              onClick={() => handleUseTemplate(false)}
-              sx={buttonStyles.primary.contained}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "8px",
+              }}
             >
-              Use as is
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Edit3 size={16} />}
-              onClick={() => handleUseTemplate(true)}
-              sx={buttonStyles.primary.outlined}
+              <Typography
+                sx={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#101828",
+                }}
+              >
+                {template.name}
+              </Typography>
+              {selectedTemplate?.id === template.id && (
+                <CheckCircle size={18} color="#13715B" />
+              )}
+            </Box>
+            <Typography
+              sx={{
+                fontSize: "13px",
+                color: "#667085",
+                marginBottom: "12px",
+                lineHeight: 1.5,
+              }}
             >
-              Customize first
-            </Button>
-          </Stack>
-        </Paper>
-      )}
+              {template.description}
+            </Typography>
+            <Box sx={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <Chip
+                label={template.framework.hierarchy.type === "three_level" ? "3 Levels" : "2 Levels"}
+                size="small"
+                sx={{
+                  backgroundColor: "#F2F4F7",
+                  color: "#344054",
+                  fontSize: "11px",
+                  height: "22px",
+                }}
+              />
+              <Chip
+                label={template.framework.is_organizational ? "Organizational" : "Project"}
+                size="small"
+                sx={{
+                  backgroundColor: "#F2F4F7",
+                  color: "#344054",
+                  fontSize: "11px",
+                  height: "22px",
+                }}
+              />
+            </Box>
+          </Box>
+        ))}
+      </Box>
+
     </Box>
   );
 
@@ -829,21 +721,29 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
     // Template customization
     if (importMethod === "template" && customizingTemplate) {
       return (
-        <Box sx={{ mt: 2 }}>
-          <Alert severity="info" sx={{ mb: 2, fontSize: fontSizes.medium }}>
+        <Box>
+          <Alert
+            severity="info"
+            sx={{
+              mb: 2,
+              fontSize: 12,
+              "& .MuiAlert-message": { fontSize: 12 },
+            }}
+          >
             Customize the framework JSON below. You can modify the name,
             description, structure, and any other fields.
           </Alert>
           <TextField
             multiline
-            rows={15}
+            rows={12}
             fullWidth
             value={customizedJson}
             onChange={(e) => setCustomizedJson(e.target.value)}
             sx={{
               "& .MuiInputBase-root": {
                 fontFamily: "monospace",
-                fontSize: "12px",
+                fontSize: 11,
+                backgroundColor: "#FAFAFA",
               },
             }}
           />
@@ -859,20 +759,20 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
     // JSON input
     if (importMethod === "json") {
       return (
-        <Box sx={{ mt: 2 }}>
+        <Box>
           <Typography
             sx={{
-              fontSize: fontSizes.medium,
+              fontSize: 13,
               fontWeight: 500,
-              color: textColors.secondary,
+              color: "#344054",
               mb: 1,
             }}
           >
-            Paste your framework JSON below:
+            Paste your framework JSON:
           </Typography>
           <TextField
             multiline
-            rows={15}
+            rows={12}
             fullWidth
             placeholder={`{
   "name": "My Framework",
@@ -884,26 +784,15 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
     "level1_name": "Category",
     "level2_name": "Control"
   },
-  "structure": [
-    {
-      "title": "Category 1",
-      "order_no": 1,
-      "items": [
-        {
-          "title": "Control 1.1",
-          "description": "Control description",
-          "order_no": 1
-        }
-      ]
-    }
-  ]
+  "structure": [...]
 }`}
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
             sx={{
               "& .MuiInputBase-root": {
                 fontFamily: "monospace",
-                fontSize: "12px",
+                fontSize: 11,
+                backgroundColor: "#FAFAFA",
               },
             }}
           />
@@ -913,35 +802,53 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
 
     // Excel upload
     return (
-      <Box sx={{ mt: 2 }}>
-        <Alert severity="info" sx={{ mb: 3, fontSize: fontSizes.medium }}>
+      <Box>
+        <Alert
+          severity="info"
+          sx={{
+            mb: 2,
+            fontSize: 12,
+            "& .MuiAlert-message": { fontSize: 12 },
+          }}
+        >
           Download the Excel template, fill it out with your framework data,
           then upload it below.
         </Alert>
 
-        <Box sx={{ mb: 3 }}>
-          <Button
-            variant="outlined"
-            startIcon={<Download size={18} />}
-            onClick={handleDownloadTemplate}
-            disabled={loading}
-            sx={buttonStyles.primary.outlined}
-          >
-            Download Template
-          </Button>
-        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Download size={16} />}
+          onClick={handleDownloadTemplate}
+          disabled={loading}
+          sx={{
+            mb: 3,
+            fontSize: 12,
+            height: 34,
+            borderColor: "#D0D5DD",
+            color: "#344054",
+            textTransform: "none",
+            "&:hover": {
+              borderColor: "#98A2B3",
+              backgroundColor: "#F9FAFB",
+            },
+          }}
+        >
+          Download Template
+        </Button>
 
         <Box
           sx={{
-            border: `2px dashed ${borderColors.default}`,
+            border: `2px dashed ${excelFile ? "#13715B" : "#E0E4E9"}`,
             borderRadius: "8px",
             p: 4,
             textAlign: "center",
             cursor: "pointer",
+            backgroundColor: excelFile ? "#F0FAF8" : "#FAFAFA",
             transition: "all 0.2s",
             "&:hover": {
-              borderColor: colors.primary,
-              backgroundColor: bgColors.subtle,
+              borderColor: "#13715B",
+              backgroundColor: "#F9FAFB",
             },
           }}
           onClick={() => fileInputRef.current?.click()}
@@ -953,19 +860,18 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
             style={{ display: "none" }}
             onChange={handleFileUpload}
           />
-          <Upload size={32} color={textColors.muted} />
+          <Upload size={32} color={excelFile ? "#13715B" : "#98A2B3"} />
           <Typography
             sx={{
-              fontSize: fontSizes.medium,
-              color: textColors.secondary,
-              mt: 2,
+              fontSize: 13,
+              color: excelFile ? "#13715B" : "#667085",
+              mt: 1.5,
+              fontWeight: excelFile ? 500 : 400,
             }}
           >
             {excelFile ? excelFile.name : "Click to upload or drag and drop"}
           </Typography>
-          <Typography
-            sx={{ fontSize: fontSizes.small, color: textColors.muted }}
-          >
+          <Typography sx={{ fontSize: 11, color: "#98A2B3" }}>
             .xlsx or .xls files only
           </Typography>
         </Box>
@@ -979,230 +885,172 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
     const counts = countItems(parsedFramework.structure);
 
     return (
-      <Box sx={{ mt: 2 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {importResult ? (
           <Alert
             severity="success"
-            icon={<CheckCircle />}
-            sx={{ mb: 3, fontSize: fontSizes.medium }}
+            icon={<CheckCircle size={20} />}
+            sx={{ fontSize: 13 }}
           >
-            <Typography
-              sx={{ fontSize: fontSizes.medium, fontWeight: 600, mb: 0.5 }}
-            >
+            <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 0.5 }}>
               Framework imported successfully!
             </Typography>
-            <Typography sx={{ fontSize: fontSizes.small }}>
+            <Typography sx={{ fontSize: 12 }}>
               Created {importResult.itemsCreated} items. Framework ID:{" "}
               {importResult.frameworkId}
             </Typography>
           </Alert>
         ) : (
-          <>
-            <Card
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            {/* Framework Summary Card */}
+            <Box
               sx={{
-                mb: 3,
-                border: `1px solid ${borderColors.default}`,
+                p: 2,
+                mb: 2,
+                border: "1px solid #E0E4E9",
                 borderRadius: "8px",
+                backgroundColor: "#FFFFFF",
+                flexShrink: 0,
               }}
             >
-              <CardContent>
-                <Typography
-                  sx={{
-                    fontSize: fontSizes.large,
-                    fontWeight: 600,
-                    color: textColors.primary,
-                    mb: 1,
-                  }}
-                >
-                  {parsedFramework.name}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: fontSizes.medium,
-                    color: textColors.muted,
-                    mb: 2,
-                  }}
-                >
-                  {parsedFramework.description}
-                </Typography>
+              <Typography
+                sx={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: "#101828",
+                  mb: 0.5,
+                }}
+              >
+                {parsedFramework.name}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: "#667085",
+                  mb: 2,
+                }}
+              >
+                {parsedFramework.description}
+              </Typography>
 
-                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
-                  <Chip
-                    label={`Version ${parsedFramework.version}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: fontSizes.small }}
-                  />
-                  <Chip
-                    label={
-                      parsedFramework.is_organizational
-                        ? "Organizational"
-                        : "Project-level"
-                    }
-                    size="small"
-                    sx={{
-                      backgroundColor: parsedFramework.is_organizational
-                        ? `${colors.primary}12`
-                        : "#f3f4f6",
-                      color: parsedFramework.is_organizational
-                        ? colors.primary
-                        : textColors.secondary,
-                      fontSize: fontSizes.small,
-                    }}
-                  />
-                  <Chip
-                    label={
-                      parsedFramework.hierarchy.type === "three_level"
-                        ? "3 Levels"
-                        : "2 Levels"
-                    }
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: fontSizes.small }}
-                  />
-                </Stack>
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                <Chip
+                  label={`v${parsedFramework.version}`}
+                  size="small"
+                  sx={{ fontSize: 11, height: 22, backgroundColor: "#F2F4F7" }}
+                />
+                <Chip
+                  label={parsedFramework.is_organizational ? "Organizational" : "Project-level"}
+                  size="small"
+                  sx={{
+                    fontSize: 11,
+                    height: 22,
+                    backgroundColor: parsedFramework.is_organizational ? "#ECFDF3" : "#F2F4F7",
+                    color: parsedFramework.is_organizational ? "#027A48" : "#344054",
+                  }}
+                />
+                <Chip
+                  label={parsedFramework.hierarchy.type === "three_level" ? "3 Levels" : "2 Levels"}
+                  size="small"
+                  sx={{ fontSize: 11, height: 22, backgroundColor: "#F2F4F7" }}
+                />
+              </Stack>
 
-                <Stack direction="row" spacing={4}>
+              <Stack direction="row" spacing={4}>
+                <Box>
+                  <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                    {parsedFramework.hierarchy.level1_name}s
+                  </Typography>
+                  <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#101828" }}>
+                    {counts.level1}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                    {parsedFramework.hierarchy.level2_name}s
+                  </Typography>
+                  <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#101828" }}>
+                    {counts.level2}
+                  </Typography>
+                </Box>
+                {parsedFramework.hierarchy.type === "three_level" && (
                   <Box>
-                    <Typography
-                      sx={{ fontSize: fontSizes.small, color: textColors.muted }}
-                    >
-                      {parsedFramework.hierarchy.level1_name}s
+                    <Typography sx={{ fontSize: 11, color: "#667085" }}>
+                      {parsedFramework.hierarchy.level3_name}s
                     </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "24px",
-                        fontWeight: 600,
-                        color: textColors.primary,
-                      }}
-                    >
-                      {counts.level1}
+                    <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#101828" }}>
+                      {counts.level3}
                     </Typography>
                   </Box>
-                  <Box>
-                    <Typography
-                      sx={{ fontSize: fontSizes.small, color: textColors.muted }}
-                    >
-                      {parsedFramework.hierarchy.level2_name}s
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "24px",
-                        fontWeight: 600,
-                        color: textColors.primary,
-                      }}
-                    >
-                      {counts.level2}
-                    </Typography>
-                  </Box>
-                  {parsedFramework.hierarchy.type === "three_level" && (
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: fontSizes.small,
-                          color: textColors.muted,
-                        }}
-                      >
-                        {parsedFramework.hierarchy.level3_name}s
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "24px",
-                          fontWeight: 600,
-                          color: textColors.primary,
-                        }}
-                      >
-                        {counts.level3}
-                      </Typography>
-                    </Box>
-                  )}
-                </Stack>
-              </CardContent>
-            </Card>
+                )}
+              </Stack>
+            </Box>
 
-            <Typography
-              sx={{
-                fontSize: fontSizes.medium,
-                fontWeight: 500,
-                color: textColors.secondary,
-                mb: 1,
-              }}
-            >
-              Structure Preview (first 5 items)
-            </Typography>
-            <TableContainer component={Paper} sx={{ ...tableStyles.frame, maxHeight: 280 }}>
+            {/* Structure Preview */}
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#344054",
+                  mb: 1,
+                  flexShrink: 0,
+                }}
+              >
+                Structure Preview
+              </Typography>
+              <TableContainer
+                component={Paper}
+                sx={{
+                  flex: 1,
+                  border: "1px solid #E0E4E9",
+                  borderRadius: "8px",
+                  boxShadow: "none",
+                }}
+              >
               <Table size="small" stickyHeader>
                 <TableHead>
-                  <TableRow sx={tableStyles.header.row}>
-                    <TableCell sx={tableStyles.header.cell}>Level</TableCell>
-                    <TableCell sx={tableStyles.header.cell}>Title</TableCell>
-                    <TableCell sx={tableStyles.header.cell}>
-                      Description
+                  <TableRow>
+                    <TableCell sx={{ fontSize: 11, fontWeight: 600, backgroundColor: "#F9FAFB", width: 60 }}>
+                      Level
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 11, fontWeight: 600, backgroundColor: "#F9FAFB" }}>
+                      Title
                     </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {parsedFramework.structure.slice(0, 5).map((l1, i) => (
                     <React.Fragment key={i}>
-                      <TableRow
-                        sx={{ ...tableStyles.body.row, backgroundColor: bgColors.subtle }}
-                      >
-                        <TableCell sx={tableStyles.body.cell}>
+                      <TableRow sx={{ backgroundColor: "#F9FAFB" }}>
+                        <TableCell sx={{ fontSize: 11 }}>
                           <Chip
                             label="L1"
                             size="small"
                             sx={{
-                              backgroundColor: `${colors.primary}12`,
-                              color: colors.primary,
-                              fontSize: "10px",
-                              height: 20,
+                              backgroundColor: "#ECFDF3",
+                              color: "#027A48",
+                              fontSize: 10,
+                              height: 18,
                             }}
                           />
                         </TableCell>
-                        <TableCell
-                          sx={{ ...tableStyles.body.cell, fontWeight: 500 }}
-                        >
+                        <TableCell sx={{ fontSize: 12, fontWeight: 500 }}>
                           {l1.title}
                         </TableCell>
-                        <TableCell sx={tableStyles.body.cell}>
-                          <Typography
-                            sx={{
-                              fontSize: fontSizes.small,
-                              maxWidth: 280,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {l1.description || "-"}
-                          </Typography>
-                        </TableCell>
                       </TableRow>
-                      {(l1.items || []).slice(0, 3).map((l2: any, j: number) => (
-                        <TableRow key={`${i}-${j}`} sx={tableStyles.body.row}>
-                          <TableCell sx={{ ...tableStyles.body.cell, pl: 3 }}>
+                      {(l1.items || []).slice(0, 2).map((l2: any, j: number) => (
+                        <TableRow key={`${i}-${j}`}>
+                          <TableCell sx={{ fontSize: 11, pl: 3 }}>
                             <Chip
                               label="L2"
                               size="small"
                               variant="outlined"
-                              sx={{ fontSize: "10px", height: 20 }}
+                              sx={{ fontSize: 10, height: 18 }}
                             />
                           </TableCell>
-                          <TableCell sx={tableStyles.body.cell}>
+                          <TableCell sx={{ fontSize: 12 }}>
                             {l2.title}
-                          </TableCell>
-                          <TableCell sx={tableStyles.body.cell}>
-                            <Typography
-                              sx={{
-                                fontSize: fontSizes.small,
-                                maxWidth: 280,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {l2.description || "-"}
-                            </Typography>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1210,8 +1058,9 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
                   ))}
                 </TableBody>
               </Table>
-            </TableContainer>
-          </>
+              </TableContainer>
+            </Box>
+          </Box>
         )}
       </Box>
     );
@@ -1261,157 +1110,333 @@ export const FrameworkImportModal: React.FC<FrameworkImportModalProps> = ({
   };
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: "16px",
-          overflow: "hidden",
-        },
+      onClose={(_event, reason) => {
+        if (reason !== "backdropClick") {
+          handleClose();
+        }
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
       }}
     >
-      <DialogTitle sx={modalStyles.header}>
-        <Box
+      <Stack
+        sx={{
+          width: "800px",
+          height: "650px",
+          maxWidth: "calc(100vw - 48px)",
+          maxHeight: "calc(100vh - 48px)",
+          backgroundColor: "#FFFFFF",
+          borderRadius: "8px",
+          overflow: "hidden",
+          "&:focus": { outline: "none" },
+        }}
+      >
+        {/* Header */}
+        <Stack
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
+            background: "linear-gradient(180deg, #F8FAFB 0%, #F3F5F8 100%)",
+            borderBottom: "1px solid #E0E4E9",
+            padding: "16px 24px",
+            paddingBottom: "36px",
+            marginBottom: "-20px",
+            zIndex: 0,
           }}
         >
-          <Box>
-            <Typography sx={modalStyles.title}>
-              Import Custom Framework
-            </Typography>
-            <Typography sx={modalStyles.description}>
-              Create a new compliance framework from templates, JSON, or Excel
-            </Typography>
-          </Box>
-          <IconButton
-            onClick={handleClose}
-            size="small"
-            sx={{
-              "&:hover": { backgroundColor: bgColors.hover },
-            }}
-          >
-            <X size={20} color={textColors.muted} />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent sx={{ py: 3 }}>
-        <Stepper
-          activeStep={activeStep}
-          sx={{
-            mb: 2,
-            "& .MuiStepLabel-label": { fontSize: fontSizes.medium },
-          }}
-        >
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-
-        {error && (
-          <Alert
-            severity="error"
-            sx={{ mb: 2, fontSize: fontSizes.medium }}
-            onClose={() => setError(null)}
-          >
-            <pre
-              style={{
-                margin: 0,
-                whiteSpace: "pre-wrap",
-                fontFamily: "inherit",
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Stack spacing={0.5}>
+              <Typography
+                sx={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: "#101828",
+                  lineHeight: "28px",
+                }}
+              >
+                Import Custom Framework
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: 13,
+                  fontWeight: 400,
+                  color: "#475467",
+                  lineHeight: "20px",
+                }}
+              >
+                Create a new compliance framework from templates, JSON, or Excel
+              </Typography>
+            </Stack>
+            <Box
+              component="span"
+              role="button"
+              tabIndex={0}
+              onClick={handleClose}
+              sx={{
+                cursor: "pointer",
+                color: "#98A2B3",
+                display: "flex",
+                alignItems: "center",
+                padding: "4px",
+                borderRadius: "4px",
+                "&:hover": { backgroundColor: "#F2F4F7" },
               }}
             >
-              {error}
-            </pre>
-          </Alert>
-        )}
+              <X size={20} />
+            </Box>
+          </Stack>
+        </Stack>
 
-        {activeStep === 0 && renderMethodSelection()}
-        {activeStep === 1 && renderConfigureStep()}
-        {activeStep === 2 && renderPreviewStep()}
-      </DialogContent>
-
-      <DialogActions sx={modalStyles.footer}>
-        <Button
-          onClick={handleReset}
-          disabled={loading}
+        {/* Content */}
+        <Box
           sx={{
-            ...buttonStyles.primary.outlined,
-            color: textColors.secondary,
-            borderColor: borderColors.default,
-            "&:hover": {
-              borderColor: textColors.secondary,
-              backgroundColor: bgColors.hover,
-            },
+            padding: "20px",
+            flex: 1,
+            overflow: "hidden",
+            border: "1px solid #E0E4E9",
+            borderRadius: "16px",
+            backgroundColor: "#FFFFFF",
+            zIndex: 1,
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          Reset
-        </Button>
-        <Box sx={{ flex: 1 }} />
-        {activeStep > 0 && !importResult && (
-          <Button
-            onClick={handleBack}
-            startIcon={<ChevronLeft size={18} />}
-            disabled={loading}
-            sx={{
-              ...buttonStyles.primary.outlined,
-              color: textColors.secondary,
-              borderColor: borderColors.default,
-              "&:hover": {
-                borderColor: textColors.secondary,
-                backgroundColor: bgColors.hover,
-              },
-            }}
-          >
-            Back
-          </Button>
-        )}
-        {activeStep < 2 && (
-          <Button
-            variant="contained"
-            onClick={handleNext}
-            endIcon={<ChevronRight size={18} />}
-            disabled={!canProceed() || loading}
-            sx={buttonStyles.primary.contained}
-          >
-            Next
-          </Button>
-        )}
-        {activeStep === 2 && !importResult && (
-          <Button
-            variant="contained"
-            onClick={handleImport}
-            startIcon={
-              loading ? (
-                <CircularProgress size={18} color="inherit" />
-              ) : (
-                <Upload size={18} />
-              )
-            }
-            disabled={loading || !parsedFramework}
-            sx={buttonStyles.primary.contained}
-          >
-            {loading ? "Importing..." : "Import Framework"}
-          </Button>
-        )}
-        {importResult && (
-          <Button
-            variant="contained"
-            onClick={handleClose}
-            sx={buttonStyles.primary.contained}
-          >
-            Done
-          </Button>
-        )}
-      </DialogActions>
-    </Dialog>
+          {/* Stepper */}
+          <Box sx={{ pb: 5, flexShrink: 0 }}>
+            <Stepper
+              activeStep={activeStep}
+              sx={{
+                "& .MuiStepConnector-line": {
+                  borderTopWidth: 2,
+                },
+                "& .MuiStepConnector-root.Mui-active .MuiStepConnector-line": {
+                  borderColor: "#13715B",
+                },
+                "& .MuiStepConnector-root.Mui-completed .MuiStepConnector-line": {
+                  borderColor: "#13715B",
+                },
+              }}
+            >
+              {steps.map((label, index) => (
+                <Step key={label}>
+                  <StepLabel
+                    sx={{
+                      "& .MuiStepLabel-label": {
+                        fontSize: "13px",
+                        fontWeight: activeStep === index ? 600 : 400,
+                        color: activeStep >= index ? "#101828" : "#667085",
+                      },
+                      "& .MuiStepIcon-root": {
+                        color: activeStep >= index ? "#13715B" : "#E0E4E9",
+                        fontSize: 24,
+                      },
+                      "& .MuiStepIcon-text": {
+                        fill: "#FFFFFF",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                      },
+                      "& .MuiStepConnector-line": {
+                        borderColor: activeStep > index ? "#13715B" : "#E0E4E9",
+                      },
+                    }}
+                  >
+                    {label}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Box>
+
+          {/* Step Content */}
+          <Box sx={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+            {error && (
+              <Alert
+                severity="error"
+                sx={{ mb: 2, fontSize: 12, flexShrink: 0 }}
+                onClose={() => setError(null)}
+              >
+                <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 12 }}>
+                  {error}
+                </pre>
+              </Alert>
+            )}
+
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+              {activeStep === 0 && renderMethodSelection()}
+              {activeStep === 1 && renderConfigureStep()}
+              {activeStep === 2 && renderPreviewStep()}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Footer */}
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          sx={{
+            background: "linear-gradient(180deg, #F3F5F8 0%, #F8FAFB 100%)",
+            borderTop: "1px solid #E0E4E9",
+            padding: "12px 24px",
+            paddingTop: "32px",
+            marginTop: "-20px",
+            zIndex: 0,
+          }}
+        >
+          {/* Left side - Back button */}
+          <Box>
+            {activeStep > 0 && !importResult && (
+              <Button
+                onClick={handleBack}
+                startIcon={<ChevronLeft size={16} />}
+                disabled={loading}
+                sx={{
+                  fontSize: 13,
+                  height: 34,
+                  color: "#344054",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: "#F2F4F7" },
+                }}
+              >
+                Back
+              </Button>
+            )}
+          </Box>
+
+          {/* Right side - Context-sensitive buttons */}
+          <Stack direction="row" spacing={1.5}>
+            {/* Step 0: Next */}
+            {activeStep === 0 && (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                endIcon={<ChevronRight size={16} />}
+                disabled={loading}
+                sx={{
+                  fontSize: 13,
+                  height: 34,
+                  backgroundColor: "#13715B",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: "#0F5A47" },
+                }}
+              >
+                Next
+              </Button>
+            )}
+
+            {/* Step 1 with template selected: Customize + Use Template */}
+            {activeStep === 1 && importMethod === "template" && selectedTemplate && !customizingTemplate && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<Edit3 size={14} />}
+                  onClick={() => handleUseTemplate(true)}
+                  disabled={loading}
+                  sx={{
+                    fontSize: 13,
+                    height: 34,
+                    borderColor: "#D0D5DD",
+                    color: "#344054",
+                    textTransform: "none",
+                    "&:hover": {
+                      borderColor: "#98A2B3",
+                      backgroundColor: "#F9FAFB",
+                    },
+                  }}
+                >
+                  Customize
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => handleUseTemplate(false)}
+                  disabled={loading}
+                  sx={{
+                    fontSize: 13,
+                    height: 34,
+                    backgroundColor: "#13715B",
+                    textTransform: "none",
+                    "&:hover": { backgroundColor: "#0F5A47" },
+                  }}
+                >
+                  Use Template
+                </Button>
+              </>
+            )}
+
+            {/* Step 1 with JSON/Excel or customizing template or no template selected: Next */}
+            {activeStep === 1 && (importMethod !== "template" || customizingTemplate || !selectedTemplate) && (
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                endIcon={<ChevronRight size={16} />}
+                disabled={!canProceed() || loading}
+                sx={{
+                  fontSize: 13,
+                  height: 34,
+                  backgroundColor: "#13715B",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: "#0F5A47" },
+                  "&.Mui-disabled": {
+                    backgroundColor: "#E5E7EB",
+                    color: "#9CA3AF",
+                  },
+                }}
+              >
+                Next
+              </Button>
+            )}
+
+            {/* Step 2: Import Framework */}
+            {activeStep === 2 && !importResult && (
+              <Button
+                variant="contained"
+                onClick={handleImport}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : (
+                    <Upload size={16} />
+                  )
+                }
+                disabled={loading || !parsedFramework}
+                sx={{
+                  fontSize: 13,
+                  height: 34,
+                  backgroundColor: "#13715B",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: "#0F5A47" },
+                  "&.Mui-disabled": {
+                    backgroundColor: "#E5E7EB",
+                    color: "#9CA3AF",
+                  },
+                }}
+              >
+                {loading ? "Importing..." : "Import Framework"}
+              </Button>
+            )}
+
+            {/* After import: Done */}
+            {importResult && (
+              <Button
+                variant="contained"
+                onClick={handleClose}
+                sx={{
+                  fontSize: 13,
+                  height: 34,
+                  backgroundColor: "#13715B",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: "#0F5A47" },
+                }}
+              >
+                Done
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </Stack>
+    </Modal>
   );
 };
