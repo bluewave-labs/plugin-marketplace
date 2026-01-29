@@ -27,7 +27,6 @@ import {
 
 interface CustomFramework {
   id: number;
-  framework_id: number;
   name: string;
   description: string;
   hierarchy_type: string;
@@ -101,6 +100,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
   apiServices,
 }) => {
   const [frameworks, setFrameworks] = useState<CustomFramework[]>([]);
+  const [addedFrameworkIds, setAddedFrameworkIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
@@ -122,35 +122,89 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
   const loadFrameworks = useCallback(async () => {
     try {
       setLoading(true);
+      // Fetch all custom frameworks
       const response = await api.get(
         "/plugins/custom-framework-import/frameworks"
       );
-      const data = response.data.data || response.data;
+
+      // Handle various response structures
+      let rawData = response.data;
+      // If wrapped in { data: ... }
+      if (rawData && typeof rawData === 'object' && 'data' in rawData) {
+        rawData = rawData.data;
+      }
+      // If still wrapped (e.g., { status, data })
+      if (rawData && typeof rawData === 'object' && !Array.isArray(rawData) && 'data' in rawData) {
+        rawData = rawData.data;
+      }
+
+      const frameworksArray = Array.isArray(rawData) ? rawData : [];
+
+      // Debug logging
+      console.log("[CustomFrameworkCards] Raw frameworks response:", response.data);
+      console.log("[CustomFrameworkCards] Parsed frameworks:", frameworksArray);
+
       // Filter frameworks based on project type (organizational vs project-level)
-      const filtered = (Array.isArray(data) ? data : []).filter(
+      const filtered = frameworksArray.filter(
         (fw: CustomFramework) => fw.is_organizational === project.is_organizational
       );
+
+      console.log("[CustomFrameworkCards] Filtered frameworks:", filtered);
       setFrameworks(filtered);
+
+      // Fetch which custom frameworks are added to this project
+      try {
+        const addedResponse = await api.get(
+          `/plugins/custom-framework-import/projects/${project.id}/custom-frameworks`
+        );
+        let addedRaw = addedResponse.data;
+        if (addedRaw && typeof addedRaw === 'object' && 'data' in addedRaw) {
+          addedRaw = addedRaw.data;
+        }
+        if (addedRaw && typeof addedRaw === 'object' && !Array.isArray(addedRaw) && 'data' in addedRaw) {
+          addedRaw = addedRaw.data;
+        }
+        const addedArray = Array.isArray(addedRaw) ? addedRaw : [];
+        const addedIds = new Set<number>(
+          addedArray.map((f: any) => f.framework_id)
+        );
+        console.log("[CustomFrameworkCards] Added framework IDs:", addedIds);
+        setAddedFrameworkIds(addedIds);
+      } catch {
+        // If endpoint doesn't exist yet, just use empty set
+        setAddedFrameworkIds(new Set());
+      }
     } catch (err) {
       console.error("Failed to load custom frameworks:", err);
     } finally {
       setLoading(false);
     }
-  }, [project.is_organizational]);
+  }, [project.is_organizational, project.id]);
 
   useEffect(() => {
     loadFrameworks();
   }, [loadFrameworks]);
 
   const isFrameworkAdded = (fw: CustomFramework): boolean => {
-    return (
-      project.framework?.some(
-        (pf) => Number(pf.framework_id) === fw.framework_id
-      ) || false
-    );
+    return addedFrameworkIds.has(fw.id);
   };
 
   const handleAddFramework = async (fw: CustomFramework) => {
+    console.log("[CustomFrameworkCards] Adding framework:", fw);
+
+    if (!fw.id) {
+      console.error("[CustomFrameworkCards] Framework ID is missing!", fw);
+      if (setAlert) {
+        setAlert({
+          variant: "error",
+          body: "Framework ID is missing. Please refresh and try again.",
+          isToast: true,
+          visible: true,
+        });
+      }
+      return;
+    }
+
     setActionLoading(fw.id);
     if (setExternalLoading) setExternalLoading(true);
 
@@ -158,12 +212,14 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
       const response = await api.post(
         "/plugins/custom-framework-import/add-to-project",
         {
-          frameworkId: fw.framework_id,
+          frameworkId: fw.id,
           projectId: project.id,
         }
       );
 
       if (response.status === 200 || response.status === 201) {
+        // Update local state immediately
+        setAddedFrameworkIds((prev) => new Set([...prev, fw.id]));
         if (setAlert) {
           setAlert({
             variant: "success",
@@ -207,12 +263,18 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
       const response = await api.post(
         "/plugins/custom-framework-import/remove-from-project",
         {
-          frameworkId: fw.framework_id,
+          frameworkId: fw.id,
           projectId: project.id,
         }
       );
 
       if (response.status === 200) {
+        // Update local state immediately
+        setAddedFrameworkIds((prev) => {
+          const next = new Set(prev);
+          next.delete(fw.id);
+          return next;
+        });
         if (setAlert) {
           setAlert({
             variant: "success",
@@ -221,7 +283,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
             visible: true,
           });
         }
-        if (onFrameworkRemoved) onFrameworkRemoved(fw.framework_id);
+        if (onFrameworkRemoved) onFrameworkRemoved(fw.id);
       } else {
         if (setAlert) {
           setAlert({

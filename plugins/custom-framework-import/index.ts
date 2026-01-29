@@ -1729,6 +1729,45 @@ async function handleGetFrameworkWithProjects(
   }
 }
 
+async function handleGetProjectCustomFrameworks(
+  ctx: PluginRouteContext
+): Promise<PluginRouteResponse> {
+  const { sequelize, tenantId, params } = ctx;
+  const projectId = parseInt(params.projectId);
+
+  try {
+    // Get all custom frameworks added to this project
+    const [frameworks] = await sequelize.query(
+      `SELECT
+         cfp.id as project_framework_id,
+         cfp.framework_id,
+         cfp.created_at as added_at,
+         cf.name,
+         cf.description,
+         cf.is_organizational,
+         cf.hierarchy_type,
+         cf.level_1_name,
+         cf.level_2_name,
+         cf.level_3_name
+       FROM "${tenantId}".custom_framework_projects cfp
+       JOIN "${tenantId}".custom_frameworks cf ON cfp.framework_id = cf.id
+       WHERE cfp.project_id = :projectId
+       ORDER BY cfp.created_at DESC`,
+      { replacements: { projectId } }
+    );
+
+    return {
+      status: 200,
+      data: frameworks,
+    };
+  } catch (error: any) {
+    return {
+      status: 500,
+      data: { message: `Failed to fetch project custom frameworks: ${error.message}` },
+    };
+  }
+}
+
 // ========== ROUTER ==========
 
 export const router: Record<
@@ -1747,6 +1786,7 @@ export const router: Record<
   // Project framework operations
   "POST /add-to-project": handleAddToProject,
   "POST /remove-from-project": handleRemoveFromProject,
+  "GET /projects/:projectId/custom-frameworks": handleGetProjectCustomFrameworks,
   "GET /projects/:projectId/frameworks/:frameworkId": handleGetProjectFrameworkData,
   "GET /projects/:projectId/frameworks/:frameworkId/progress": handleGetProgress,
 
