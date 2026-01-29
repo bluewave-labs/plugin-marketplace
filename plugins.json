@@ -336,6 +336,11 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw"
+          },
+          {
+            "slotId": "page.org-framework.management",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw"
           }
         ]
       }
