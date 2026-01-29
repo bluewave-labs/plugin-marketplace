@@ -3,6 +3,7 @@
  *
  * Renders a combined framework toggle that includes both built-in and custom frameworks.
  * This component takes over the entire Controls tab toggle section when custom frameworks exist.
+ * Uses the same styling as the app's ButtonToggle component.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -54,34 +55,51 @@ interface CustomFrameworkControlsProps {
   };
 }
 
-// Toggle button styles matching the app's ButtonToggle
-const toggleContainerStyle = {
-  display: "inline-flex",
+// Styles matching the app's ButtonToggle exactly
+const toggleContainerStyle = (height: number) => ({
+  position: "relative",
+  display: "flex",
+  border: "1px solid rgba(0, 0, 0, 0.12)",
   borderRadius: "4px",
-  border: "1px solid #D0D5DD",
   overflow: "hidden",
-  backgroundColor: "#fff",
-};
+  height,
+  bgcolor: "action.hover",
+  width: "fit-content",
+  padding: "2px",
+  gap: "2px",
+});
 
-const toggleButtonStyle = (isSelected: boolean, _isCustom: boolean = false) => ({
-  padding: "8px 16px",
-  fontSize: "13px",
-  fontWeight: 500,
+const toggleTabStyle = {
   cursor: "pointer",
-  border: "none",
-  borderRight: "1px solid #D0D5DD",
-  backgroundColor: isSelected ? "#13715B" : "#fff",
-  color: isSelected ? "#fff" : "#344054",
-  transition: "all 0.2s ease",
+  px: 5,
   display: "flex",
   alignItems: "center",
-  gap: "8px",
-  "&:hover": {
-    backgroundColor: isSelected ? "#0e5c47" : "#F9FAFB",
-  },
-  "&:last-child": {
-    borderRight: "none",
-  },
+  justifyContent: "center",
+  height: "100%",
+  color: "text.primary",
+  fontSize: "13px",
+  fontWeight: 400,
+  userSelect: "none",
+  width: "fit-content",
+  minWidth: "120px",
+  position: "relative",
+  zIndex: 1,
+  transition: "color 0.3s ease",
+  gap: 1,
+};
+
+const sliderStyle = (activeIndex: number, optionsCount: number) => ({
+  position: "absolute",
+  top: "2px",
+  left: "2px",
+  height: "calc(100% - 4px)",
+  width: `calc((100% - ${(optionsCount + 1) * 2}px) / ${optionsCount})`,
+  bgcolor: "background.paper",
+  border: "1px solid rgba(0, 0, 0, 0.08)",
+  borderRadius: "4px",
+  transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  transform: `translateX(calc(${activeIndex} * (100% + 2px)))`,
+  zIndex: 0,
 });
 
 export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = ({
@@ -182,23 +200,36 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
     return <>{children}</>;
   }
 
-  // Render combined toggle with built-in + custom frameworks
+  // Calculate active index for the slider
+  const totalOptions = builtInFrameworks.length + customFrameworks.length;
+  let activeIndex: number;
+  if (isCustomSelected && selectedCustomFramework !== null) {
+    const customIndex = customFrameworks.findIndex(
+      (fw) => fw.framework_id === selectedCustomFramework
+    );
+    activeIndex = builtInFrameworks.length + customIndex;
+  } else {
+    activeIndex = selectedBuiltInFramework;
+  }
+
   const currentCustomFramework = customFrameworks.find(
     (fw) => fw.framework_id === selectedCustomFramework
   );
 
   return (
     <Stack spacing={3}>
-      {/* Combined framework toggle */}
-      {project && (builtInFrameworks.length > 0 || customFrameworks.length > 0) && (
-        <Box data-joyride-id="framework-toggle" sx={toggleContainerStyle}>
+      {/* Combined framework toggle - matching ButtonToggle styling */}
+      {project && totalOptions > 0 && (
+        <Box data-joyride-id="framework-toggle" sx={toggleContainerStyle(34)}>
+          {/* Sliding background */}
+          <Box sx={sliderStyle(activeIndex, totalOptions)} />
+
           {/* Built-in framework options */}
           {builtInFrameworks.map((framework, index) => (
             <Box
               key={framework.id}
-              component="button"
               onClick={() => handleBuiltInSelect(index)}
-              sx={toggleButtonStyle(!isCustomSelected && selectedBuiltInFramework === index)}
+              sx={toggleTabStyle}
             >
               {framework.name}
             </Box>
@@ -208,25 +239,23 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
           {customFrameworks.map((framework) => (
             <Box
               key={`custom-${framework.framework_id}`}
-              component="button"
               onClick={() => handleCustomSelect(framework.framework_id)}
-              sx={toggleButtonStyle(isCustomSelected && selectedCustomFramework === framework.framework_id, true)}
+              sx={toggleTabStyle}
             >
               {framework.name}
               <Chip
                 label="Custom"
                 size="small"
                 sx={{
-                  height: 18,
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  backgroundColor: isCustomSelected && selectedCustomFramework === framework.framework_id
-                    ? "rgba(255,255,255,0.2)"
-                    : "#eff6ff",
-                  color: isCustomSelected && selectedCustomFramework === framework.framework_id
-                    ? "#fff"
-                    : "#3b82f6",
-                  ml: 0.5,
+                  height: 20,
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  backgroundColor: "#E6F4EE",
+                  color: "#13715B",
+                  border: "none",
+                  "& .MuiChip-label": {
+                    px: 1,
+                  },
                 }}
               />
             </Box>

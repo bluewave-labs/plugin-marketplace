@@ -32,6 +32,7 @@ import {
   StatusType,
   theme,
 } from "./theme";
+import { ControlItemDrawer } from "./ControlItemDrawer";
 
 interface CustomFrameworkViewerProps {
   frameworkId: number;
@@ -42,7 +43,6 @@ interface CustomFrameworkViewerProps {
     post: (url: string, data?: any) => Promise<any>;
     patch: (url: string, data?: any) => Promise<any>;
   };
-  onItemClick?: (item: any, level: number) => void;
   onRefresh?: () => void;
 }
 
@@ -130,7 +130,6 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
   projectId,
   frameworkName,
   apiServices,
-  onItemClick,
   onRefresh,
 }) => {
   const [data, setData] = useState<FrameworkData | null>(null);
@@ -138,6 +137,10 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedLevel1, setExpandedLevel1] = useState<number | null>(null);
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Level2Item | null>(null);
 
   const api = apiServices || {
     get: async (url: string) => {
@@ -182,7 +185,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [frameworkId, projectId, api]);
+  }, [frameworkId, projectId]);
 
   useEffect(() => {
     loadFrameworkData();
@@ -192,6 +195,21 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
     loadFrameworkData();
     onRefresh?.();
   }, [loadFrameworkData, onRefresh]);
+
+  const handleItemClick = (item: Level2Item) => {
+    setSelectedItem(item);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+    setSelectedItem(null);
+  };
+
+  const handleItemSave = () => {
+    // Reload data after saving
+    loadFrameworkData();
+  };
 
   const getStatusColor = (status: string): string => {
     const statusConfig = statusColors[status as StatusType];
@@ -412,18 +430,17 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
                         elevation={0}
                         sx={{
                           p: 2,
-                          cursor: onItemClick ? "pointer" : "default",
+                          cursor: "pointer",
                           transition: "all 0.2s",
                           border: "1px solid #e2e8f0",
                           borderLeft: `4px solid ${getStatusColor(level2.status || "Not started")}`,
-                          "&:hover": onItemClick
-                            ? {
-                                bgcolor: "#f8fafc",
-                                borderColor: colors.primary,
-                              }
-                            : {},
+                          "&:hover": {
+                            bgcolor: "#f8fafc",
+                            borderColor: colors.primary,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                          },
                         }}
-                        onClick={() => onItemClick?.(level2, 2)}
+                        onClick={() => handleItemClick(level2)}
                       >
                         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -553,6 +570,21 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
           </Accordion>
         );
       })}
+
+      {/* Control Item Drawer */}
+      <ControlItemDrawer
+        open={drawerOpen}
+        onClose={handleDrawerClose}
+        item={selectedItem}
+        frameworkData={data ? {
+          level_1_name: data.level_1_name,
+          level_2_name: data.level_2_name,
+          level_3_name: data.level_3_name,
+        } : null}
+        projectId={projectId}
+        onSave={handleItemSave}
+        apiServices={api}
+      />
     </Box>
   );
 };

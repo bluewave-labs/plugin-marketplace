@@ -13,6 +13,7 @@ export { CustomFrameworkDrawer } from "./CustomFrameworkDrawer";
 export { FrameworkDetailDrawer } from "./FrameworkDetailDrawer";
 export { CustomFrameworkCards } from "./CustomFrameworkCards";
 export { CustomFrameworkControls } from "./CustomFrameworkControls";
+export { ControlItemDrawer } from "./ControlItemDrawer";
 
 // Theme
 export { theme, statusOptions } from "./theme";
