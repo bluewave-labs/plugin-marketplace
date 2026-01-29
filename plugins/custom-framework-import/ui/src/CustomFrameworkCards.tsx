@@ -15,13 +15,12 @@ import {
   Divider,
   Chip,
   Stack,
+  Dialog,
 } from "@mui/material";
 import { Check as CheckIcon, FileJson } from "lucide-react";
 import {
   colors,
-  textColors,
   fontSizes,
-  buttonStyles,
   borderColors,
 } from "./theme";
 
@@ -66,28 +65,27 @@ interface CustomFrameworkCardsProps {
   };
 }
 
-// Card styles matching the core app's AddNewFramework exactly
+// Card styles matching the core app's FrameworkSettings exactly
 const frameworkCardStyle = {
-  border: `1.5px solid ${colors.primary}`,
-  borderRadius: "8px",
-  background: "#e3f5e6",
-  padding: "20px",
-  transition: "background 0.2s",
-  marginBottom: "24px",
+  background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+  border: "1px solid #d0d5dd",
+  borderRadius: "4px",
+  p: "24px",
+  display: "flex",
+  flexDirection: "column" as const,
+  minHeight: "150px",
 };
 
 const frameworkCardTitleStyle = {
+  fontSize: 13,
   fontWeight: 500,
-  color: "#232B3A",
-  fontSize: fontSizes.large,
+  color: "#000000",
 };
 
 const frameworkCardDescriptionStyle = {
-  color: "#6B7280",
-  fontSize: "14px",
-  textAlign: "left" as const,
-  marginBottom: "8px",
-  lineHeight: 1.5,
+  fontSize: 13,
+  color: "#666666",
+  mb: "auto",
 };
 
 export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
@@ -103,6 +101,8 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
   const [addedFrameworkIds, setAddedFrameworkIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [frameworkToRemove, setFrameworkToRemove] = useState<CustomFramework | null>(null);
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
 
   // Helper to get auth token from localStorage (redux-persist)
   const getAuthToken = (): string | null => {
@@ -208,6 +208,15 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
     loadFrameworks();
   }, [loadFrameworks]);
 
+  // Emit custom framework count to parent (AddFrameworkModal) for total count calculation
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("customFrameworkCountChanged", {
+        detail: { projectId: project.id, count: addedFrameworkIds.size },
+      })
+    );
+  }, [addedFrameworkIds.size, project.id]);
+
   const isFrameworkAdded = (fw: CustomFramework): boolean => {
     return addedFrameworkIds.has(fw.id);
   };
@@ -251,6 +260,12 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
             visible: true,
           });
         }
+        // Emit custom event to notify other plugin components (e.g., CustomFrameworkControls)
+        window.dispatchEvent(
+          new CustomEvent("customFrameworkChanged", {
+            detail: { projectId: project.id, action: "add", frameworkId: fw.id },
+          })
+        );
         if (onFrameworkAdded) onFrameworkAdded();
       } else {
         if (setAlert) {
@@ -278,15 +293,17 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
     }
   };
 
-  const handleRemoveFramework = async (fw: CustomFramework) => {
-    setActionLoading(fw.id);
+  const handleRemoveFramework = async () => {
+    if (!frameworkToRemove) return;
+
+    setActionLoading(frameworkToRemove.id);
     if (setExternalLoading) setExternalLoading(true);
 
     try {
       const response = await api.post(
         "/plugins/custom-framework-import/remove-from-project",
         {
-          frameworkId: fw.id,
+          frameworkId: frameworkToRemove.id,
           projectId: project.id,
         }
       );
@@ -295,18 +312,24 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
         // Update local state immediately
         setAddedFrameworkIds((prev) => {
           const next = new Set(prev);
-          next.delete(fw.id);
+          next.delete(frameworkToRemove.id);
           return next;
         });
         if (setAlert) {
           setAlert({
             variant: "success",
-            body: `Framework "${fw.name}" removed successfully`,
+            body: `Framework "${frameworkToRemove.name}" removed successfully`,
             isToast: true,
             visible: true,
           });
         }
-        if (onFrameworkRemoved) onFrameworkRemoved(fw.id);
+        // Emit custom event to notify other plugin components (e.g., CustomFrameworkControls)
+        window.dispatchEvent(
+          new CustomEvent("customFrameworkChanged", {
+            detail: { projectId: project.id, action: "remove", frameworkId: frameworkToRemove.id },
+          })
+        );
+        if (onFrameworkRemoved) onFrameworkRemoved(frameworkToRemove.id);
       } else {
         if (setAlert) {
           setAlert({
@@ -329,6 +352,8 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
       }
     } finally {
       setActionLoading(null);
+      setIsRemoveModalOpen(false);
+      setFrameworkToRemove(null);
       if (setExternalLoading) setExternalLoading(false);
     }
   };
@@ -345,7 +370,10 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
     return null; // Don't show anything if no custom frameworks available
   }
 
-  const onlyOneFramework = project.framework?.length === 1;
+  // Total framework count = system frameworks + added custom frameworks
+  const systemFrameworkCount = project.framework?.length || 0;
+  const customFrameworkCount = addedFrameworkIds.size;
+  const totalFrameworkCount = systemFrameworkCount + customFrameworkCount;
 
   return (
     <Stack spacing={3}>
@@ -368,112 +396,170 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
         <Divider sx={{ flex: 1, borderColor: borderColors.default }} />
       </Box>
 
-      {/* Custom framework cards */}
-      {frameworks.map((fw) => {
-        const isAdded = isFrameworkAdded(fw);
-        const isActionInProgress = actionLoading === fw.id;
-        const cannotRemove = isAdded && onlyOneFramework;
+      {/* Custom framework cards - 3 column grid matching system frameworks */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "16px",
+          alignItems: "stretch",
+        }}
+      >
+        {frameworks.map((fw) => {
+          const isAdded = isFrameworkAdded(fw);
+          const isActionInProgress = actionLoading === fw.id;
+          // Can only remove if there's more than 1 total framework (system + custom)
+          const cannotRemove = isAdded && totalFrameworkCount <= 1;
 
-        return (
-          <Box key={fw.id} sx={frameworkCardStyle}>
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="flex-start"
-              mb={1}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          return (
+            <Box key={fw.id} sx={frameworkCardStyle}>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
                 <Typography sx={frameworkCardTitleStyle}>{fw.name}</Typography>
-                <Chip
-                  label="Custom"
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: fontSizes.small,
-                    fontWeight: 500,
-                    backgroundColor: "#eff6ff",
-                    color: colors.info,
-                    border: `1px solid ${colors.info}30`,
-                  }}
-                />
+                {isAdded && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      backgroundColor: "#E6F4EE",
+                      borderRadius: "4px",
+                      px: 1.5,
+                      py: 0.5,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#13715B",
+                    }}
+                  >
+                    <CheckIcon size={16} />
+                    Added
+                  </Box>
+                )}
               </Box>
-              {isAdded && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    background: "#E6F4EE",
-                    borderRadius: "12px",
-                    px: 1.5,
-                    py: 0.5,
-                    fontSize: fontSizes.medium,
-                    fontWeight: 600,
-                    color: colors.primary,
-                  }}
-                >
-                  <CheckIcon size={16} />
-                  Added
-                </Box>
-              )}
+
+              <Typography sx={frameworkCardDescriptionStyle}>
+                {fw.description}
+              </Typography>
+
+              <Box display="flex" justifyContent="flex-end" mt={2}>
+                {isAdded ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={externalLoading || isActionInProgress || cannotRemove}
+                    onClick={() => {
+                      setFrameworkToRemove(fw);
+                      setIsRemoveModalOpen(true);
+                    }}
+                    sx={{
+                      minWidth: 100,
+                      borderColor: "#F87171",
+                      color: "#DC2626",
+                      fontWeight: 600,
+                      textTransform: "none",
+                      "&:hover": {
+                        borderColor: "#EF4444",
+                        backgroundColor: "#FEF2F2",
+                      },
+                    }}
+                  >
+                    {isActionInProgress ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      "Remove"
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={externalLoading || isActionInProgress}
+                    onClick={() => handleAddFramework(fw)}
+                    sx={{
+                      minWidth: 100,
+                      fontWeight: 600,
+                      textTransform: "none",
+                      backgroundColor: "#13715B",
+                      color: "#fff",
+                      "&:hover": { backgroundColor: "#0e5c47" },
+                    }}
+                  >
+                    {isActionInProgress ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      "Add"
+                    )}
+                  </Button>
+                )}
+              </Box>
             </Box>
-            <Typography sx={frameworkCardDescriptionStyle}>
-              {fw.description}
-            </Typography>
-            <Typography
-              sx={{
-                color: textColors.muted,
-                fontSize: fontSizes.small,
-                display: "block",
-                mb: 2,
-              }}
-            >
-              {fw.level1_count || 0} {fw.level_1_name}s, {fw.level2_count || 0}{" "}
-              {fw.level_2_name}s
-              {fw.hierarchy_type === "three_level" && fw.level3_count
-                ? `, ${fw.level3_count} ${fw.level_3_name}s`
-                : ""}
-            </Typography>
-            <Box display="flex" justifyContent="flex-end">
-              {isAdded ? (
-                <Button
-                  variant="contained"
-                  size="small"
-                  disabled={externalLoading || isActionInProgress || cannotRemove}
-                  onClick={() => handleRemoveFramework(fw)}
-                  sx={{
-                    ...buttonStyles.error.contained,
-                    minWidth: 100,
-                  }}
-                >
-                  {isActionInProgress ? (
-                    <CircularProgress size={16} color="inherit" />
-                  ) : (
-                    "Remove"
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  variant="contained"
-                  size="small"
-                  disabled={externalLoading || isActionInProgress}
-                  onClick={() => handleAddFramework(fw)}
-                  sx={{
-                    ...buttonStyles.primary.contained,
-                    minWidth: 100,
-                  }}
-                >
-                  {isActionInProgress ? (
-                    <CircularProgress size={16} color="inherit" />
-                  ) : (
-                    "Add"
-                  )}
-                </Button>
-              )}
-            </Box>
-          </Box>
-        );
-      })}
+          );
+        })}
+      </Box>
+
+      {/* Confirmation Modal for Remove - matching app's ConfirmationModal */}
+      <Dialog
+        open={isRemoveModalOpen && frameworkToRemove !== null}
+        onClose={() => {
+          setIsRemoveModalOpen(false);
+          setFrameworkToRemove(null);
+        }}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            },
+          },
+        }}
+        PaperProps={{
+          sx: {
+            width: "485px",
+            maxWidth: "calc(100vw - 32px)",
+            borderRadius: "4px",
+            padding: "16px",
+            boxShadow: "0px 8px 8px -4px rgba(16, 24, 40, 0.03), 0px 20px 24px -4px rgba(16, 24, 40, 0.08)",
+            gap: "16px",
+            boxSizing: "border-box",
+            margin: 0,
+          },
+        }}
+      >
+        {/* Content */}
+        <Stack sx={{ gap: "16px" }}>
+          <Typography sx={{ color: "#344054", fontWeight: "bolder" }}>
+            Confirm framework removal
+          </Typography>
+          <Typography sx={{ fontSize: "13px", color: "#344054" }}>
+            Are you sure you want to remove {frameworkToRemove?.name} from the project?
+          </Typography>
+        </Stack>
+        {/* Actions */}
+        <Stack direction="row" justifyContent="flex-end">
+          <Button
+            variant="text"
+            onClick={() => {
+              setIsRemoveModalOpen(false);
+              setFrameworkToRemove(null);
+            }}
+            sx={{
+              color: "#344054",
+              textTransform: "none",
+              px: "32px",
+              width: 120,
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRemoveFramework}
+            disabled={actionLoading !== null}
+            sx={{ textTransform: "none" }}
+          >
+            {actionLoading !== null ? "Removing..." : "Remove"}
+          </Button>
+        </Stack>
+      </Dialog>
     </Stack>
   );
 };

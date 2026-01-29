@@ -372,58 +372,63 @@ export const CustomFrameworkConfig: React.FC<CustomFrameworkConfigProps> = ({
         apiServices={api}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog - matching app's ConfirmationModal */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
+        slotProps={{
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            },
+          },
+        }}
         PaperProps={{
           sx: {
-            borderRadius: "8px",
-            maxWidth: 400,
+            width: "485px",
+            maxWidth: "calc(100vw - 32px)",
+            borderRadius: "4px",
+            padding: "16px",
+            boxShadow: "0px 8px 8px -4px rgba(16, 24, 40, 0.03), 0px 20px 24px -4px rgba(16, 24, 40, 0.08)",
+            gap: "16px",
+            boxSizing: "border-box",
+            margin: 0,
           },
         }}
       >
-        <DialogTitle
-          sx={{
-            fontSize: "15px",
-            fontWeight: 600,
-            color: textColors.primary,
-            pb: 1,
-          }}
-        >
-          Delete Framework
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: fontSizes.medium, color: textColors.secondary }}>
+        <Stack sx={{ gap: "16px" }}>
+          <Typography sx={{ color: "#344054", fontWeight: "bolder" }}>
+            Confirm delete
+          </Typography>
+          <Typography sx={{ fontSize: "13px", color: "#344054" }}>
             Are you sure you want to delete "{selectedFramework?.name}"? This
             will remove the framework structure but will not affect projects
             that have already implemented it.
           </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 1 }}>
+        </Stack>
+        <Stack direction="row" justifyContent="flex-end">
           <Button
+            variant="text"
             onClick={() => setDeleteDialogOpen(false)}
             sx={{
-              ...buttonStyles.primary.outlined,
-              color: textColors.secondary,
-              borderColor: borderColors.default,
-              "&:hover": {
-                borderColor: textColors.secondary,
-                backgroundColor: bgColors.hover,
-              },
+              color: "#344054",
+              textTransform: "none",
+              px: "32px",
+              width: 120,
             }}
           >
             Cancel
           </Button>
           <Button
             variant="contained"
+            color="error"
             onClick={handleDeleteFramework}
             disabled={actionLoading}
-            sx={buttonStyles.error.contained}
+            sx={{ textTransform: "none" }}
           >
             {actionLoading ? "Deleting..." : "Delete"}
           </Button>
-        </DialogActions>
+        </Stack>
       </Dialog>
 
       {/* Add to Project Dialog */}

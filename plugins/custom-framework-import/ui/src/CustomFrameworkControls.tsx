@@ -6,7 +6,7 @@
  * Uses the same styling as the app's ButtonToggle component.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from "react";
 import {
   Box,
   CircularProgress,
@@ -113,7 +113,7 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
   renderBuiltInContent,
   renderHeaderActions,
   onRefresh,
-  children,
+  children: _children,
   apiServices,
 }) => {
   const [customFrameworks, setCustomFrameworks] = useState<CustomFramework[]>([]);
@@ -124,6 +124,19 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
 
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const selectedCustomFrameworkRef = useRef<number | null>(null);
+  const hasLoadedRef = useRef(false);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedCustomFrameworkRef.current = selectedCustomFramework;
+  }, [selectedCustomFramework]);
+
+  // Reset tabRefs when framework counts change
+  const totalFrameworkCount = builtInFrameworks.length + customFrameworks.length;
+  useEffect(() => {
+    tabRefs.current = new Array(totalFrameworkCount).fill(null);
+  }, [totalFrameworkCount]);
 
   // Helper to get auth token from localStorage (redux-persist)
   const getAuthToken = (): string | null => {
@@ -142,7 +155,7 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
     return null;
   };
 
-  const api = apiServices || {
+  const api = useMemo(() => apiServices || {
     get: async (url: string) => {
       const token = getAuthToken();
       const headers: Record<string, string> = {};
@@ -172,16 +185,25 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
       });
       return { data: await response.json(), status: response.status };
     },
-  };
+  }, [apiServices]);
 
-  const loadFrameworks = useCallback(async () => {
+  const loadFrameworks = useCallback(async (forceReload = false) => {
     if (!project?.id) {
       setLoading(false);
       return;
     }
 
+    // Skip if already loaded and not forcing reload
+    if (hasLoadedRef.current && !forceReload) {
+      return;
+    }
+
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load
+      if (!hasLoadedRef.current) {
+        setLoading(true);
+      }
+
       const response = await api.get(
         `/plugins/custom-framework-import/projects/${project.id}/custom-frameworks`
       );
@@ -196,18 +218,57 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
 
       const frameworksArray = Array.isArray(rawData) ? rawData : [];
       console.log("[CustomFrameworkControls] Loaded custom frameworks:", frameworksArray);
+
+      // If the currently selected custom framework was removed, switch to built-in
+      // Use ref to avoid dependency on selectedCustomFramework state
+      const currentSelection = selectedCustomFrameworkRef.current;
+      if (currentSelection !== null) {
+        const stillExists = frameworksArray.some(
+          (fw: CustomFramework) => fw.framework_id === currentSelection
+        );
+        if (!stillExists) {
+          console.log("[CustomFrameworkControls] Selected framework was removed, switching to built-in");
+          setIsCustomSelected(false);
+          setSelectedCustomFramework(null);
+        }
+      }
+
       setCustomFrameworks(frameworksArray);
+      hasLoadedRef.current = true;
     } catch (err) {
       console.log("[CustomFrameworkControls] Error loading frameworks:", err);
       setCustomFrameworks([]);
     } finally {
       setLoading(false);
     }
-  }, [project?.id]);
+  }, [project?.id, api]);
 
   useEffect(() => {
     loadFrameworks();
   }, [loadFrameworks]);
+
+  // Listen for custom framework changes from CustomFrameworkCards
+  useEffect(() => {
+    const handleCustomFrameworkChange = (event: CustomEvent) => {
+      // Only reload if the event is for this project
+      if (event.detail?.projectId === project?.id) {
+        console.log("[CustomFrameworkControls] Received custom framework change event, reloading...");
+        loadFrameworks(true); // Force reload when frameworks are added/removed
+      }
+    };
+
+    window.addEventListener(
+      "customFrameworkChanged" as any,
+      handleCustomFrameworkChange as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "customFrameworkChanged" as any,
+        handleCustomFrameworkChange as EventListener
+      );
+    };
+  }, [loadFrameworks, project?.id]);
 
   // Calculate active index for the slider
   const totalOptions = builtInFrameworks.length + customFrameworks.length;
@@ -221,25 +282,49 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
     activeIndex = selectedBuiltInFramework;
   }
 
-  // Update slider position when active tab changes
-  useEffect(() => {
-    const updateSliderPosition = () => {
-      const activeTab = tabRefs.current[activeIndex];
-      const container = containerRef.current;
-      if (activeTab && container) {
-        const containerRect = container.getBoundingClientRect();
-        const tabRect = activeTab.getBoundingClientRect();
-        setSliderPosition({
-          left: tabRect.left - containerRect.left,
-          width: tabRect.width,
-        });
-      }
-    };
+  // Helper function to update slider position
+  const updateSliderPosition = useCallback(() => {
+    const activeTab = tabRefs.current[activeIndex];
+    const container = containerRef.current;
+    if (activeTab && container) {
+      const containerRect = container.getBoundingClientRect();
+      const tabRect = activeTab.getBoundingClientRect();
+      setSliderPosition({
+        left: tabRect.left - containerRect.left,
+        width: tabRect.width,
+      });
+    }
+  }, [activeIndex]);
 
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(updateSliderPosition, 10);
+  // Update slider position synchronously after DOM updates
+  useLayoutEffect(() => {
+    updateSliderPosition();
+  }, [updateSliderPosition, customFrameworks.length, builtInFrameworks.length]);
+
+  // Also update with a small delay for cases where refs aren't immediately available
+  useEffect(() => {
+    const timer = setTimeout(updateSliderPosition, 100);
     return () => clearTimeout(timer);
-  }, [activeIndex, customFrameworks.length, builtInFrameworks.length]);
+  }, [updateSliderPosition, customFrameworks.length, builtInFrameworks.length]);
+
+  // Also update on window resize
+  useEffect(() => {
+    window.addEventListener("resize", updateSliderPosition);
+    return () => window.removeEventListener("resize", updateSliderPosition);
+  }, [updateSliderPosition]);
+
+  // Auto-select first custom framework when there are no built-in frameworks
+  useEffect(() => {
+    if (
+      builtInFrameworks.length === 0 &&
+      customFrameworks.length > 0 &&
+      !isCustomSelected
+    ) {
+      console.log("[CustomFrameworkControls] No built-in frameworks, auto-selecting first custom framework");
+      setIsCustomSelected(true);
+      setSelectedCustomFramework(customFrameworks[0].framework_id);
+    }
+  }, [builtInFrameworks.length, customFrameworks, isCustomSelected]);
 
   const handleBuiltInSelect = (index: number) => {
     setIsCustomSelected(false);
@@ -261,9 +346,52 @@ export const CustomFrameworkControls: React.FC<CustomFrameworkControlsProps> = (
     );
   }
 
-  // If no custom frameworks, render the default children (built-in toggle + content)
+  // If no custom frameworks, render built-in toggle + content
   if (customFrameworks.length === 0) {
-    return <>{children}</>;
+    return (
+      <Stack spacing={3}>
+        {/* Header row with toggle and optional actions */}
+        {project && builtInFrameworks.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2,
+            }}
+          >
+            {/* Built-in framework toggle */}
+            <Box
+              ref={containerRef}
+              data-joyride-id="framework-toggle"
+              sx={toggleContainerStyle(34)}
+            >
+              {/* Sliding background */}
+              <Box sx={sliderStyle(sliderPosition)} />
+
+              {/* Built-in framework options */}
+              {builtInFrameworks.map((framework, index) => (
+                <Box
+                  key={framework.id}
+                  ref={(el: HTMLDivElement | null) => { tabRefs.current[index] = el; }}
+                  onClick={() => onBuiltInFrameworkSelect(index)}
+                  sx={toggleTabStyle}
+                >
+                  {framework.name}
+                </Box>
+              ))}
+            </Box>
+
+            {/* Optional header actions (e.g., "Manage frameworks" button) */}
+            {renderHeaderActions && renderHeaderActions()}
+          </Box>
+        )}
+
+        {/* Built-in content */}
+        {renderBuiltInContent()}
+      </Stack>
+    );
   }
 
   const currentCustomFramework = customFrameworks.find(

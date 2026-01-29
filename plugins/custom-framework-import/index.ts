@@ -915,6 +915,24 @@ async function handleRemoveFromProject(
       };
     }
 
+    // Check if this is the only framework (system + custom) for the project
+    // Cannot remove if it's the last one
+    const [countResult] = await sequelize.query(
+      `SELECT (
+        (SELECT COUNT(*) FROM "${tenantId}".projects_frameworks WHERE project_id = :projectId) +
+        (SELECT COUNT(*) FROM "${tenantId}".custom_framework_projects WHERE project_id = :projectId)
+      ) as total_count`,
+      { replacements: { projectId } }
+    );
+
+    const totalCount = parseInt((countResult as any[])[0]?.total_count || "0");
+    if (totalCount <= 1) {
+      return {
+        status: 400,
+        data: { message: "Cannot remove the only framework from a project. At least one framework must remain." },
+      };
+    }
+
     const projectFrameworkId = (pfResult as any[])[0].id;
 
     // Delete project-framework association (cascades to impl records)

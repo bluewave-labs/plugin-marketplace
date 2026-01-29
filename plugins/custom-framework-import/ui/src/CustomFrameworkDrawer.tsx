@@ -176,7 +176,13 @@ export const CustomFrameworkDrawer: React.FC<CustomFrameworkDrawerProps> = ({
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: "100%", sm: 500 }, maxWidth: "100vw" },
+        sx: {
+          width: { xs: "100%", sm: 500 },
+          maxWidth: "100vw",
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+        },
       }}
     >
       {/* Header */}

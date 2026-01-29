@@ -206,6 +206,9 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
           margin: 0,
           borderRadius: 0,
           overflowX: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
         },
       }}
     >
@@ -257,7 +260,7 @@ export const FrameworkDetailDrawer: React.FC<FrameworkDetailDrawerProps> = ({
       <Divider />
 
       {/* Content */}
-      <Box sx={{ flex: 1, overflow: "auto" }}>
+      <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress size={24} sx={{ color: colors.primary }} />

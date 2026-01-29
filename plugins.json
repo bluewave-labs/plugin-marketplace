@@ -352,6 +352,11 @@
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw"
+          },
+          {
+            "slotId": "page.framework-dashboard.custom",
+            "componentName": "CustomFrameworkDashboard",
+            "renderType": "raw"
           }
         ]
       }

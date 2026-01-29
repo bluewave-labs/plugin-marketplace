@@ -372,10 +372,13 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
           margin: 0,
           borderRadius: 0,
           overflowX: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
         },
       }}
     >
-      <Stack sx={{ width: 600 }}>
+      <Stack sx={{ width: 600, height: "100%", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <Stack
           sx={{
@@ -460,7 +463,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         </Box>
 
         {/* Tab Content */}
-        <Box sx={{ flex: 1, overflow: "auto" }}>
+        <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
           {/* Details Tab */}
           {activeTab === "details" && (
             <Box sx={{ padding: "15px 20px" }}>
