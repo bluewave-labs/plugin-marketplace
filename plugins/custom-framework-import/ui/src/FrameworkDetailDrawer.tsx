@@ -43,7 +43,6 @@ import {
 import {
   colors,
   textColors,
-  fontSizes,
   bgColors,
   borderColors,
 } from "./theme";

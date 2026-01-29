@@ -28,7 +28,6 @@ import {
 import {
   colors,
   textColors,
-  borderColors,
   statusColors,
   StatusType,
   theme,
