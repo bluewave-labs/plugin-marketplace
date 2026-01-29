@@ -144,23 +144,49 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [newEvidence, setNewEvidence] = useState({ name: "", url: "" });
 
+  // Helper to get auth token from localStorage (redux-persist)
+  const getAuthToken = (): string | null => {
+    try {
+      const persistedRoot = localStorage.getItem("persist:root");
+      if (persistedRoot) {
+        const parsed = JSON.parse(persistedRoot);
+        if (parsed.auth) {
+          const authState = JSON.parse(parsed.auth);
+          return authState.authToken || null;
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+    return null;
+  };
+
   const api = apiServices || {
     get: async (url: string) => {
-      const response = await fetch(`/api${url}`);
-      return { data: await response.json() };
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const response = await fetch(`/api${url}`, { headers });
+      return { data: await response.json(), status: response.status };
     },
     post: async (url: string, body?: any) => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch(`/api${url}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
       return { data: await response.json(), status: response.status };
     },
     patch: async (url: string, body?: any) => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const response = await fetch(`/api${url}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
       return { data: await response.json(), status: response.status };

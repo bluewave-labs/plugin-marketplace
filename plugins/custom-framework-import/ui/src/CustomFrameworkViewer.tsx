@@ -171,7 +171,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
         throw new Error(errorData.message || `Request failed with status ${response.status}`);
       }
-      return { data: await response.json() };
+      return { data: await response.json(), status: response.status };
     },
     post: async (url: string, body?: any) => {
       const token = getAuthToken();
@@ -188,7 +188,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
         throw new Error(errorData.message || `Request failed with status ${response.status}`);
       }
-      return { data: await response.json() };
+      return { data: await response.json(), status: response.status };
     },
     patch: async (url: string, body?: any) => {
       const token = getAuthToken();
@@ -205,7 +205,7 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
         throw new Error(errorData.message || `Request failed with status ${response.status}`);
       }
-      return { data: await response.json() };
+      return { data: await response.json(), status: response.status };
     },
   };
 
