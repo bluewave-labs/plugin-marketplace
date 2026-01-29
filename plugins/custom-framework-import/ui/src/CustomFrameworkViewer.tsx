@@ -142,11 +142,31 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Level2Item | null>(null);
 
+  // Helper to get auth token from localStorage (redux-persist)
+  const getAuthToken = (): string | null => {
+    try {
+      const persistedRoot = localStorage.getItem("persist:root");
+      if (persistedRoot) {
+        const parsed = JSON.parse(persistedRoot);
+        if (parsed.auth) {
+          const authState = JSON.parse(parsed.auth);
+          return authState.authToken || null;
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+    return null;
+  };
+
   const api = apiServices || {
     get: async (url: string) => {
-      const response = await fetch(`/api${url}`, {
-        credentials: "include",
-      });
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api${url}`, { headers });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
         throw new Error(errorData.message || `Request failed with status ${response.status}`);
@@ -154,10 +174,14 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
       return { data: await response.json() };
     },
     post: async (url: string, body?: any) => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`/api${url}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers,
         body: JSON.stringify(body),
       });
       if (!response.ok) {
@@ -167,10 +191,14 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
       return { data: await response.json() };
     },
     patch: async (url: string, body?: any) => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`/api${url}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers,
         body: JSON.stringify(body),
       });
       if (!response.ok) {
