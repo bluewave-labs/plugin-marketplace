@@ -39,7 +39,12 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["notifications", "messaging", "collaboration", "alerts"],
+      "tags": [
+        "notifications",
+        "messaging",
+        "collaboration",
+        "alerts"
+      ],
       "pluginPath": "plugins/slack",
       "entryPoint": "index.ts",
       "dependencies": {
@@ -100,7 +105,12 @@
           "displayOrder": 5
         }
       ],
-      "tags": ["ml-ops", "model-tracking", "experiments", "model-registry"],
+      "tags": [
+        "ml-ops",
+        "model-tracking",
+        "experiments",
+        "model-registry"
+      ],
       "pluginPath": "plugins/mlflow",
       "entryPoint": "index.ts",
       "dependencies": {
@@ -170,7 +180,13 @@
           "displayOrder": 5
         }
       ],
-      "tags": ["azure", "ai-foundry", "openai", "model-registry", "cloud"],
+      "tags": [
+        "azure",
+        "ai-foundry",
+        "openai",
+        "model-registry",
+        "cloud"
+      ],
       "pluginPath": "plugins/azure-ai-foundry",
       "entryPoint": "index.ts",
       "dependencies": {},
@@ -238,7 +254,13 @@
           "displayOrder": 5
         }
       ],
-      "tags": ["risk", "import", "excel", "bulk-operations", "data-management"],
+      "tags": [
+        "risk",
+        "import",
+        "excel",
+        "bulk-operations",
+        "data-management"
+      ],
       "pluginPath": "plugins/risk-import",
       "entryPoint": "index.ts",
       "dependencies": {
@@ -314,7 +336,13 @@
           "displayOrder": 6
         }
       ],
-      "tags": ["framework", "compliance", "import", "custom", "governance"],
+      "tags": [
+        "framework",
+        "compliance",
+        "import",
+        "custom",
+        "governance"
+      ],
       "pluginPath": "plugins/custom-framework-import",
       "entryPoint": "index.ts",
       "dependencies": {
@@ -404,9 +432,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["soc2", "audit", "trust-services", "compliance", "security"],
+      "tags": [
+        "soc2",
+        "audit",
+        "trust-services",
+        "compliance",
+        "security"
+      ],
       "pluginPath": "plugins/soc2",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -416,25 +450,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "soc2" }
+            "props": {
+              "pluginKey": "soc2"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "soc2" }
+            "props": {
+              "pluginKey": "soc2"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "soc2" }
+            "props": {
+              "pluginKey": "soc2"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "soc2" }
+            "props": {
+              "pluginKey": "soc2"
+            }
           }
         ]
       }
@@ -477,9 +519,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["gdpr", "privacy", "data-protection", "eu", "compliance"],
+      "tags": [
+        "gdpr",
+        "privacy",
+        "data-protection",
+        "eu",
+        "compliance"
+      ],
       "pluginPath": "plugins/gdpr",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -489,25 +537,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "gdpr" }
+            "props": {
+              "pluginKey": "gdpr"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "gdpr" }
+            "props": {
+              "pluginKey": "gdpr"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "gdpr" }
+            "props": {
+              "pluginKey": "gdpr"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "gdpr" }
+            "props": {
+              "pluginKey": "gdpr"
+            }
           }
         ]
       }
@@ -550,9 +606,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["hipaa", "healthcare", "phi", "security", "compliance"],
+      "tags": [
+        "hipaa",
+        "healthcare",
+        "phi",
+        "security",
+        "compliance"
+      ],
       "pluginPath": "plugins/hipaa",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -562,25 +624,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "hipaa" }
+            "props": {
+              "pluginKey": "hipaa"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "hipaa" }
+            "props": {
+              "pluginKey": "hipaa"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "hipaa" }
+            "props": {
+              "pluginKey": "hipaa"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "hipaa" }
+            "props": {
+              "pluginKey": "hipaa"
+            }
           }
         ]
       }
@@ -623,9 +693,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["pci-dss", "payment", "cardholder", "security", "compliance"],
+      "tags": [
+        "pci-dss",
+        "payment",
+        "cardholder",
+        "security",
+        "compliance"
+      ],
       "pluginPath": "plugins/pci-dss",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -635,25 +711,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "pci-dss" }
+            "props": {
+              "pluginKey": "pci-dss"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "pci-dss" }
+            "props": {
+              "pluginKey": "pci-dss"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "pci-dss" }
+            "props": {
+              "pluginKey": "pci-dss"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "pci-dss" }
+            "props": {
+              "pluginKey": "pci-dss"
+            }
           }
         ]
       }
@@ -696,9 +780,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["ccpa", "privacy", "california", "consumer-rights", "compliance"],
+      "tags": [
+        "ccpa",
+        "privacy",
+        "california",
+        "consumer-rights",
+        "compliance"
+      ],
       "pluginPath": "plugins/ccpa",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -708,25 +798,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "ccpa" }
+            "props": {
+              "pluginKey": "ccpa"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "ccpa" }
+            "props": {
+              "pluginKey": "ccpa"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "ccpa" }
+            "props": {
+              "pluginKey": "ccpa"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "ccpa" }
+            "props": {
+              "pluginKey": "ccpa"
+            }
           }
         ]
       }
@@ -769,9 +867,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["dora", "financial", "resilience", "eu", "compliance"],
+      "tags": [
+        "dora",
+        "financial",
+        "resilience",
+        "eu",
+        "compliance"
+      ],
       "pluginPath": "plugins/dora",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -781,25 +885,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "dora" }
+            "props": {
+              "pluginKey": "dora"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "dora" }
+            "props": {
+              "pluginKey": "dora"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "dora" }
+            "props": {
+              "pluginKey": "dora"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "dora" }
+            "props": {
+              "pluginKey": "dora"
+            }
           }
         ]
       }
@@ -842,9 +954,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["nist", "cybersecurity", "framework", "critical-infrastructure", "compliance"],
+      "tags": [
+        "nist",
+        "cybersecurity",
+        "framework",
+        "critical-infrastructure",
+        "compliance"
+      ],
       "pluginPath": "plugins/nist-csf",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -854,25 +972,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "nist-csf" }
+            "props": {
+              "pluginKey": "nist-csf"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "nist-csf" }
+            "props": {
+              "pluginKey": "nist-csf"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "nist-csf" }
+            "props": {
+              "pluginKey": "nist-csf"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "nist-csf" }
+            "props": {
+              "pluginKey": "nist-csf"
+            }
           }
         ]
       }
@@ -915,9 +1041,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["cis", "controls", "security", "cyber-defense", "compliance"],
+      "tags": [
+        "cis",
+        "controls",
+        "security",
+        "cyber-defense",
+        "compliance"
+      ],
       "pluginPath": "plugins/cis-controls",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -927,25 +1059,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "cis-controls" }
+            "props": {
+              "pluginKey": "cis-controls"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "cis-controls" }
+            "props": {
+              "pluginKey": "cis-controls"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "cis-controls" }
+            "props": {
+              "pluginKey": "cis-controls"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "cis-controls" }
+            "props": {
+              "pluginKey": "cis-controls"
+            }
           }
         ]
       }
@@ -988,9 +1128,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["iso27001", "isms", "security", "information-security", "compliance"],
+      "tags": [
+        "iso27001",
+        "isms",
+        "security",
+        "information-security",
+        "compliance"
+      ],
       "pluginPath": "plugins/iso27001",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -1000,25 +1146,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "iso27001" }
+            "props": {
+              "pluginKey": "iso27001"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "iso27001" }
+            "props": {
+              "pluginKey": "iso27001"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "iso27001" }
+            "props": {
+              "pluginKey": "iso27001"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "iso27001" }
+            "props": {
+              "pluginKey": "iso27001"
+            }
           }
         ]
       }
@@ -1061,9 +1215,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["ai", "ethics", "governance", "responsible-ai", "fairness"],
+      "tags": [
+        "ai",
+        "ethics",
+        "governance",
+        "responsible-ai",
+        "fairness"
+      ],
       "pluginPath": "plugins/ai-ethics",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -1073,25 +1233,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "ai-ethics" }
+            "props": {
+              "pluginKey": "ai-ethics"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "ai-ethics" }
+            "props": {
+              "pluginKey": "ai-ethics"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "ai-ethics" }
+            "props": {
+              "pluginKey": "ai-ethics"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "ai-ethics" }
+            "props": {
+              "pluginKey": "ai-ethics"
+            }
           }
         ]
       }
@@ -1134,9 +1302,15 @@
           "displayOrder": 4
         }
       ],
-      "tags": ["data", "governance", "quality", "management", "compliance"],
+      "tags": [
+        "data",
+        "governance",
+        "quality",
+        "management",
+        "compliance"
+      ],
       "pluginPath": "plugins/data-governance",
-      "entryPoint": "index.ts",
+      "entryPoint": "dist/index.js",
       "dependencies": {},
       "ui": {
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
@@ -1146,25 +1320,33 @@
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
-            "props": { "pluginKey": "data-governance" }
+            "props": {
+              "pluginKey": "data-governance"
+            }
           },
           {
             "slotId": "page.controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "data-governance" }
+            "props": {
+              "pluginKey": "data-governance"
+            }
           },
           {
             "slotId": "page.project-controls.custom-framework",
             "componentName": "CustomFrameworkControls",
             "renderType": "raw",
-            "props": { "pluginKey": "data-governance" }
+            "props": {
+              "pluginKey": "data-governance"
+            }
           },
           {
             "slotId": "page.framework-dashboard.custom",
             "componentName": "CustomFrameworkDashboard",
             "renderType": "raw",
-            "props": { "pluginKey": "data-governance" }
+            "props": {
+              "pluginKey": "data-governance"
+            }
           }
         ]
       }
