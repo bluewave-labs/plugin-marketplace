@@ -46,6 +46,9 @@ custom-framework-import/
 - **Organizational Support**: Create both organizational and project-level frameworks
 - **Visual Dashboard**: Progress cards, assignment status, status breakdown
 - **Controls Management**: Full control implementation tracking
+- **Evidence Upload**: Attach evidence files to controls using the main app's file manager
+- **Risk Linking**: Link controls to project risks for traceability
+- **Dynamic File Sources**: Framework-specific file source enums created automatically
 
 ## Database Schema
 
@@ -63,6 +66,7 @@ CREATE TABLE custom_frameworks (
   level_1_name VARCHAR(100) NOT NULL,   -- e.g., 'Categories', 'Domains'
   level_2_name VARCHAR(100) NOT NULL,   -- e.g., 'Controls', 'Requirements'
   level_3_name VARCHAR(100),            -- e.g., 'Sub-controls' (only for three_level)
+  file_source VARCHAR(100),             -- e.g., 'SOC 2 Type II Framework evidence'
   is_organizational BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -452,6 +456,170 @@ Controls can have the following status values:
 | Implemented | Green (#13715B) | Complete |
 | Needs Rework | Orange (#EA580C) | Requires changes |
 
+## Evidence Upload & File Sources
+
+### Overview
+
+The plugin supports uploading evidence files to controls. Evidence is stored using the main app's file manager (`/api/file-manager`) and categorized with framework-specific file source enums.
+
+### Dynamic File Source Enum
+
+When a custom framework is imported, the plugin automatically creates a new PostgreSQL enum value in `enum_files_source`. This allows evidence files to be categorized by framework.
+
+#### How It Works
+
+1. **On framework import**: The plugin generates a file source name from the framework name
+2. **Enum creation**: The new value is added to `enum_files_source` (if not exists)
+3. **Storage**: The file source name is stored in the `custom_frameworks.file_source` column
+4. **Usage**: When uploading evidence, the framework's file source is used
+
+#### File Source Naming Convention
+
+The file source is generated as: `{Framework Name} evidence`
+
+| Framework Name | Generated File Source |
+|----------------|----------------------|
+| SOC 2 Type II Framework | `SOC 2 Type II Framework evidence` |
+| GDPR Compliance Framework | `GDPR Compliance Framework evidence` |
+| HIPAA Security Rule Framework | `HIPAA Security Rule Framework evidence` |
+| CCPA Compliance Framework | `CCPA Compliance Framework evidence` |
+| DORA Compliance Framework | `DORA Compliance Framework evidence` |
+| CIS Controls v8 | `CIS Controls v8 evidence` |
+| NIST Cybersecurity Framework | `NIST Cybersecurity Framework evidence` |
+| PCI-DSS Lite Framework | `PCI-DSS Lite Framework evidence` |
+| ISO 27001 Starter Framework | `ISO 27001 Starter Framework evidence` |
+| AI Ethics & Governance Framework | `AI Ethics & Governance Framework evidence` |
+| Data Governance Framework | `Data Governance Framework evidence` |
+| Custom Framework Starter | `Custom Framework Starter evidence` |
+
+#### Backend Implementation
+
+```typescript
+// Generate file source name from framework name
+function generateFileSourceName(frameworkName: string): string {
+  const cleanName = frameworkName.trim();
+  return `${cleanName} evidence`;
+}
+
+// Add enum value if it doesn't exist (runs before transaction)
+async function addFileSourceEnum(sequelize: any, sourceName: string): Promise<boolean> {
+  // Check if enum value already exists
+  const [existing] = await sequelize.query(`
+    SELECT 1 FROM pg_enum
+    WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'enum_files_source')
+    AND enumlabel = :sourceName
+  `, { replacements: { sourceName } });
+
+  if (existing.length === 0) {
+    // Add the new enum value
+    await sequelize.query(
+      `ALTER TYPE public.enum_files_source ADD VALUE '${sourceName}'`
+    );
+  }
+  return true;
+}
+```
+
+**Note**: `ALTER TYPE ... ADD VALUE` cannot run inside a transaction, so enum creation happens before the main import transaction.
+
+### Evidence Upload Flow
+
+1. User selects files in the Control Item Drawer
+2. Files are uploaded to `/api/file-manager` with the framework's file source
+3. File IDs are stored in the control's `evidence_links` JSONB array
+4. Files can be downloaded or deleted from the drawer
+
+```typescript
+// Upload evidence file
+const formData = new FormData();
+formData.append("file", file);
+formData.append("source", frameworkData.file_source || "File Manager");
+formData.append("project_id", projectId.toString());
+
+const response = await fetch("/api/file-manager", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${token}` },
+  body: formData,
+});
+```
+
+### Fallback Behavior
+
+If a framework doesn't have a `file_source` (e.g., created before this feature), evidence uploads fall back to `"File Manager"` as the source.
+
+### Field Naming Convention
+
+| Layer | Field Name | Description |
+|-------|------------|-------------|
+| Database | `evidence_links` | JSONB column in `custom_framework_level2_impl` |
+| Backend API | `evidence_links` | Field name in API responses and requests |
+| UI State | `evidenceFiles` | React state variable (camelCase) |
+| UI Props | `evidence_links` or `evidence_files` | Interface accepts both for compatibility |
+
+**Important**: The UI accepts both `evidence_links` and `evidence_files` from the API response for backward compatibility. When saving, the field is always sent as `evidence_links`.
+
+## Risk Linking
+
+### Overview
+
+Controls can be linked to project risks for traceability. This creates a relationship between compliance controls and identified risks.
+
+### How It Works
+
+1. User opens the Control Item Drawer
+2. Clicks "Linked Risks" to open the risk selection modal
+3. Selects/deselects risks from the project's risk list
+4. On save, the changes are sent to the backend as `risks_to_add` and `risks_to_remove` arrays
+
+### API Request
+
+```typescript
+// PATCH /api/plugins/custom-framework-import/projects/:projectId/implementations/:implId
+{
+  "status": "In Progress",
+  "owner": 123,
+  "implementation_details": "Details...",
+  "evidence_links": [{ "id": 1, "fileName": "doc.pdf" }],
+  "risks_to_add": [5, 8, 12],    // Risk IDs to link
+  "risks_to_remove": [3, 7]      // Risk IDs to unlink
+}
+```
+
+### UI Components
+
+The risk linking UI includes:
+- **Risk count badge**: Shows number of linked risks
+- **Selection modal**: Searchable list with checkboxes
+- **Visual indicators**: Shows risk level/severity
+
+```typescript
+// Risk selection modal
+<Dialog open={isLinkedRisksModalOpen} onClose={() => setIsLinkedRisksModalOpen(false)}>
+  <DialogTitle>Link Risks to Control</DialogTitle>
+  <DialogContent>
+    <TextField placeholder="Search risks..." />
+    <Table>
+      {allProjectRisks.map(risk => (
+        <TableRow>
+          <Checkbox checked={isRiskLinked(risk.id)} />
+          <TableCell>{risk.risk_name}</TableCell>
+          <TableCell>{risk.risk_level}</TableCell>
+        </TableRow>
+      ))}
+    </Table>
+  </DialogContent>
+</Dialog>
+```
+
+### Database Storage
+
+Linked risks are stored in the `linked_risks` JSONB column of `custom_framework_implementations`:
+
+```sql
+ALTER TABLE custom_framework_implementations
+ADD COLUMN linked_risks JSONB DEFAULT '[]';
+```
+
 ## Extending the Plugin
 
 ### Adding a New Status Value
@@ -566,15 +734,67 @@ END
 - **Cause**: Server caches plugins
 - **Solution**: Copy updated `index.ts` to server cache directory and restart server
 
+### Evidence files not showing after upload
+- **Cause**: Files were uploaded but not saved/linked to the control
+- **Solution**: After selecting files in the drawer, click **Save** to persist the link. The file upload to `/api/file-manager` only stores the file; the Save action updates `evidence_links` in the database to link it to the control.
+
+### Evidence upload fails with "invalid input value for enum"
+- **Cause**: The file source enum value doesn't exist in `enum_files_source`
+- **Solution**:
+  - For frameworks imported before this feature: Re-import the framework to create the enum
+  - Manually add the enum value:
+    ```sql
+    ALTER TYPE public.enum_files_source ADD VALUE 'Framework Name evidence';
+    ```
+  - Update the framework's `file_source` column:
+    ```sql
+    UPDATE custom_frameworks SET file_source = 'Framework Name evidence' WHERE id = X;
+    ```
+
+### File source not showing in file manager
+- **Cause**: Framework was imported before the file source feature was added
+- **Solution**:
+  1. Check if framework has `file_source` set:
+     ```sql
+     SELECT id, name, file_source FROM custom_frameworks;
+     ```
+  2. If null, update it manually or delete and re-import the framework
+
+### Risk linking not working
+- **Cause**: Missing `linked_risks` column or API endpoint issue
+- **Solution**:
+  - Verify the column exists:
+    ```sql
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'custom_framework_implementations'
+    AND column_name = 'linked_risks';
+    ```
+  - If missing, add it:
+    ```sql
+    ALTER TABLE custom_framework_implementations
+    ADD COLUMN linked_risks JSONB DEFAULT '[]';
+    ```
+
 ## Example Frameworks
 
-The plugin can be used to import frameworks like:
-- GDPR (General Data Protection Regulation)
-- SOC 2 (Trust Service Criteria)
-- HIPAA (Health Insurance Portability)
-- PCI-DSS (Payment Card Industry)
-- Internal compliance policies
-- Custom governance frameworks
+The plugin includes starter templates for common compliance frameworks:
+
+| Template | Framework Name | File Source Enum |
+|----------|----------------|------------------|
+| `soc2.json` | SOC 2 Type II Framework | `SOC 2 Type II Framework evidence` |
+| `gdpr.json` | GDPR Compliance Framework | `GDPR Compliance Framework evidence` |
+| `hipaa.json` | HIPAA Security Rule Framework | `HIPAA Security Rule Framework evidence` |
+| `pci-dss-lite.json` | PCI-DSS Lite Framework | `PCI-DSS Lite Framework evidence` |
+| `ccpa.json` | CCPA Compliance Framework | `CCPA Compliance Framework evidence` |
+| `dora.json` | DORA Compliance Framework | `DORA Compliance Framework evidence` |
+| `nist-csf.json` | NIST Cybersecurity Framework | `NIST Cybersecurity Framework evidence` |
+| `cis-controls.json` | CIS Controls v8 | `CIS Controls v8 evidence` |
+| `iso27001-starter.json` | ISO 27001 Starter Framework | `ISO 27001 Starter Framework evidence` |
+| `ai-ethics.json` | AI Ethics & Governance Framework | `AI Ethics & Governance Framework evidence` |
+| `data-governance.json` | Data Governance Framework | `Data Governance Framework evidence` |
+| `custom-starter.json` | Custom Framework Starter | `Custom Framework Starter evidence` |
+
+Templates are located in `ui/src/templates/` and can be customized or used as references for creating your own frameworks
 
 ## Author
 

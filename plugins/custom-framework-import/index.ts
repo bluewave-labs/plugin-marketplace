@@ -108,6 +108,7 @@ export async function install(
     // All tables are created in the tenant schema for proper isolation
 
     // Framework definition table (tenant-specific)
+    // file_source stores the enum value name for evidence uploads (e.g., "SOC 2 evidence")
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS "${tenantId}".custom_frameworks (
         id SERIAL PRIMARY KEY,
@@ -119,6 +120,7 @@ export async function install(
         level_1_name VARCHAR(100) NOT NULL DEFAULT 'Category',
         level_2_name VARCHAR(100) NOT NULL DEFAULT 'Control',
         level_3_name VARCHAR(100),
+        file_source VARCHAR(100),
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
@@ -419,21 +421,67 @@ function toPgArray(arr: string[] | undefined | null): string {
   return `{${escaped.join(',')}}`;
 }
 
+/**
+ * Generate file source enum value name from framework name
+ * e.g., "SOC 2" -> "SOC 2 evidence"
+ */
+function generateFileSourceName(frameworkName: string): string {
+  // Clean up the name and append "evidence"
+  const cleanName = frameworkName.trim();
+  return `${cleanName} evidence`;
+}
+
+/**
+ * Add a new value to enum_files_source if it doesn't exist
+ */
+async function addFileSourceEnum(
+  sequelize: any,
+  sourceName: string
+): Promise<boolean> {
+  try {
+    // Check if the enum value already exists
+    const [existing] = await sequelize.query(`
+      SELECT 1 FROM pg_enum
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'enum_files_source')
+      AND enumlabel = :sourceName
+    `, { replacements: { sourceName } });
+
+    if (existing.length === 0) {
+      // Add the new enum value
+      await sequelize.query(
+        `ALTER TYPE public.enum_files_source ADD VALUE '${sourceName.replace(/'/g, "''")}'`
+      );
+      console.log(`[CustomFrameworkImport] Added file source enum: "${sourceName}"`);
+    }
+    return true;
+  } catch (error: any) {
+    console.error(`[CustomFrameworkImport] Failed to add file source enum: ${error.message}`);
+    return false;
+  }
+}
+
 // ========== CORE FUNCTIONS ==========
 
 async function importFramework(
   frameworkData: CustomFrameworkImport,
   tenantId: string,
   sequelize: any
-): Promise<{ frameworkId: number; itemsCreated: number }> {
+): Promise<{ frameworkId: number; itemsCreated: number; fileSource: string }> {
+  // Generate file source enum value name (e.g., "SOC 2 evidence")
+  const fileSource = generateFileSourceName(frameworkData.name);
+
+  // Add the file source enum value before starting transaction
+  // (ALTER TYPE cannot run inside a transaction)
+  await addFileSourceEnum(sequelize, fileSource);
+
   const transaction = await sequelize.transaction();
 
   try {
     // 1. Create framework entry in tenant schema
     const [frameworkResult] = await sequelize.query(
       `INSERT INTO "${tenantId}".custom_frameworks
-       (name, description, version, is_organizational, hierarchy_type, level_1_name, level_2_name, level_3_name, created_at)
-       VALUES (:name, :description, :version, :is_organizational, :hierarchy_type, :level_1_name, :level_2_name, :level_3_name, NOW())
+       (name, description, version, is_organizational, hierarchy_type, level_1_name, level_2_name, level_3_name, file_source, created_at)
+       VALUES (:name, :description, :version, :is_organizational, :hierarchy_type, :level_1_name, :level_2_name, :level_3_name, :file_source, NOW())
        RETURNING id`,
       {
         replacements: {
@@ -445,6 +493,7 @@ async function importFramework(
           level_1_name: frameworkData.hierarchy.level1_name,
           level_2_name: frameworkData.hierarchy.level2_name,
           level_3_name: frameworkData.hierarchy.level3_name || null,
+          file_source: fileSource,
         },
         transaction,
       }
@@ -530,7 +579,7 @@ async function importFramework(
 
     await transaction.commit();
 
-    return { frameworkId, itemsCreated };
+    return { frameworkId, itemsCreated, fileSource };
   } catch (error) {
     await transaction.rollback();
     throw error;
@@ -584,6 +633,7 @@ async function handleImportFramework(
         success: true,
         frameworkId: result.frameworkId,
         itemsCreated: result.itemsCreated,
+        fileSource: result.fileSource,
         message: `Framework "${frameworkData.name}" imported successfully with ${result.itemsCreated} items.`,
       },
     };
@@ -615,6 +665,7 @@ async function handleGetCustomFrameworks(
         cf.level_1_name,
         cf.level_2_name,
         cf.level_3_name,
+        cf.file_source,
         cf.created_at,
         (SELECT COUNT(*) FROM "${tenantId}".custom_framework_level1 WHERE framework_id = cf.id) as level1_count,
         (SELECT COUNT(*) FROM "${tenantId}".custom_framework_level2 l2

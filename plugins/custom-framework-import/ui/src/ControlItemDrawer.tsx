@@ -24,6 +24,19 @@ import {
   Tab,
   Tooltip,
   SelectChangeEvent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Paper,
+  InputAdornment,
 } from "@mui/material";
 import {
   X as CloseIcon,
@@ -31,12 +44,12 @@ import {
   FileText as FileIcon,
   Trash2 as DeleteIcon,
   Download as DownloadIcon,
-  Eye as ViewIcon,
   Link as LinkIcon,
   MessageSquare,
   FolderOpen,
   HelpCircle,
   AlertTriangle,
+  Search as SearchIcon,
 } from "lucide-react";
 import {
   colors,
@@ -54,6 +67,7 @@ interface ControlItemDrawerProps {
     level_1_name: string;
     level_2_name: string;
     level_3_name?: string;
+    file_source?: string;
   } | null;
   projectId: number;
   onSave: () => void;
@@ -62,6 +76,15 @@ interface ControlItemDrawerProps {
     post: (url: string, data?: any) => Promise<any>;
     patch: (url: string, data?: any) => Promise<any>;
   };
+  isOrganizational?: boolean;
+}
+
+interface ProjectRisk {
+  id: number;
+  risk_name: string;
+  risk_description?: string;
+  risk_level?: string;
+  severity?: string;
 }
 
 interface Level2Item {
@@ -87,6 +110,7 @@ interface Level2Item {
   implementation_details?: string;
   auditor_feedback?: string;
   evidence_files?: EvidenceFile[];
+  evidence_links?: EvidenceFile[];  // Backend returns this field name
   linked_risks?: LinkedRisk[];
   items?: Level3Item[];
 }
@@ -127,8 +151,11 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
   open,
   onClose,
   item,
+  frameworkData,
+  projectId,
   onSave,
   apiServices,
+  isOrganizational = false,
 }) => {
   const [activeTab, setActiveTab] = useState("details");
   const [formData, setFormData] = useState({
@@ -152,6 +179,11 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
 
   // Linked risks state
   const [linkedRisks, setLinkedRisks] = useState<LinkedRisk[]>([]);
+  const [isLinkedRisksModalOpen, setIsLinkedRisksModalOpen] = useState(false);
+  const [allProjectRisks, setAllProjectRisks] = useState<ProjectRisk[]>([]);
+  const [risksToAdd, setRisksToAdd] = useState<number[]>([]);
+  const [risksToRemove, setRisksToRemove] = useState<number[]>([]);
+  const [riskSearchQuery, setRiskSearchQuery] = useState("");
 
   // Helper to get auth token from localStorage (redux-persist)
   const getAuthToken = (): string | null => {
@@ -215,12 +247,35 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
     }
   }, []);
 
+  // Load all project risks for linking
+  const loadProjectRisks = useCallback(async () => {
+    try {
+      // For organizational frameworks, fetch all risks
+      // For project frameworks, fetch project-specific risks
+      const endpoint = isOrganizational
+        ? "/projectRisks?filter=active"
+        : projectId
+          ? `/projectRisks/by-projId/${projectId}`
+          : "/projectRisks?filter=active";
+
+      const response = await api.get(endpoint);
+      let risksData = response.data?.data || response.data;
+      if (Array.isArray(risksData)) {
+        setAllProjectRisks(risksData);
+      }
+    } catch (err) {
+      console.log("[ControlItemDrawer] Error loading project risks:", err);
+      setAllProjectRisks([]);
+    }
+  }, [isOrganizational, projectId]);
+
   useEffect(() => {
     if (open) {
       loadUsers();
+      loadProjectRisks();
       setActiveTab("details");
     }
-  }, [open, loadUsers]);
+  }, [open, loadUsers, loadProjectRisks]);
 
   // Initialize form data when item changes
   useEffect(() => {
@@ -234,10 +289,14 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         implementation_details: item.implementation_details || "",
         auditor_feedback: item.auditor_feedback || "",
       });
-      setEvidenceFiles(item.evidence_files || []);
+      // Backend returns evidence_links, map to evidenceFiles state
+      setEvidenceFiles(item.evidence_links || item.evidence_files || []);
       setLinkedRisks(item.linked_risks || []);
       setUploadFiles([]);
       setDeletedFileIds([]);
+      setRisksToAdd([]);
+      setRisksToRemove([]);
+      setRiskSearchQuery("");
     }
   }, [item]);
 
@@ -263,10 +322,73 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
     setError(null);
 
     try {
+      // 1. Upload new evidence files first
+      const uploadedFileIds: number[] = [];
+      // Use framework-specific file source if available (e.g., "SOC 2 evidence")
+      // Fallback to "File Manager" which is a valid enum value
+      const fileSource = frameworkData?.file_source || "File Manager";
+      for (const file of uploadFiles) {
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("source", fileSource);
+          if (projectId) {
+            formData.append("project_id", projectId.toString());
+          }
+
+          const token = getAuthToken();
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const uploadResponse = await fetch("/api/file-manager", {
+            method: "POST",
+            headers,
+            body: formData,
+          });
+
+          if (uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json();
+            const fileId = uploadResult.data?.id || uploadResult.id;
+            if (fileId) {
+              uploadedFileIds.push(fileId);
+            }
+          } else {
+            console.error("[ControlItemDrawer] File upload failed:", file.name);
+          }
+        } catch (uploadErr) {
+          console.error("[ControlItemDrawer] Error uploading file:", uploadErr);
+        }
+      }
+
+      // 2. Build updated evidence_links
+      // Start with existing files (minus deleted ones)
+      const existingLinks = evidenceFiles
+        .filter(f => !deletedFileIds.includes(f.id))
+        .map(f => ({
+          id: f.id,
+          fileName: f.fileName,
+          size: f.size,
+          type: f.type,
+          uploadDate: f.uploadDate,
+        }));
+
+      // Add newly uploaded files
+      const newLinks = uploadedFileIds.map((id, idx) => ({
+        id,
+        fileName: uploadFiles[idx]?.name || `file_${id}`,
+        size: uploadFiles[idx]?.size,
+        type: uploadFiles[idx]?.type,
+        uploadDate: new Date().toISOString(),
+      }));
+
+      const evidence_links = [...existingLinks, ...newLinks];
+
+      // 3. Build payload
       const payload: any = {
         status: formData.status,
         implementation_details: formData.implementation_details,
         auditor_feedback: formData.auditor_feedback,
+        evidence_links,
       };
 
       if (formData.owner) {
@@ -293,6 +415,31 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         payload.due_date = null;
       }
 
+      // 4. Add risk linking
+      if (risksToAdd.length > 0) {
+        payload.risks_to_add = risksToAdd;
+      }
+      if (risksToRemove.length > 0) {
+        payload.risks_to_remove = risksToRemove;
+      }
+
+      // 5. Delete files from file manager
+      for (const fileId of deletedFileIds) {
+        try {
+          const token = getAuthToken();
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          await fetch(`/api/file-manager/${fileId}`, {
+            method: "DELETE",
+            headers,
+          });
+        } catch (deleteErr) {
+          console.error("[ControlItemDrawer] Error deleting file:", deleteErr);
+        }
+      }
+
+      // 6. Save to API
       const response = await api.patch(
         `/plugins/custom-framework-import/level2/${item.impl_id}`,
         payload
@@ -331,6 +478,98 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
   const getStatusColor = (status: string) => {
     return statusColors[status as StatusType]?.color || "#94a3b8";
   };
+
+  // Handle file download
+  const handleDownloadFile = async (fileId: number, fileName: string) => {
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/file-manager/${fileId}`, {
+        headers,
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } else {
+        setError("Failed to download file");
+      }
+    } catch (err) {
+      console.error("[ControlItemDrawer] Error downloading file:", err);
+      setError("Failed to download file");
+    }
+  };
+
+  // Risk selection helpers
+  const getCurrentRiskIds = (): Set<number> => {
+    const ids = new Set<number>();
+    linkedRisks.forEach(r => ids.add(r.id));
+    risksToAdd.forEach(id => ids.add(id));
+    risksToRemove.forEach(id => ids.delete(id));
+    return ids;
+  };
+
+  const isRiskSelected = (riskId: number): boolean => {
+    const currentIds = getCurrentRiskIds();
+    return currentIds.has(riskId);
+  };
+
+  const handleRiskToggle = (riskId: number) => {
+    const wasOriginallyLinked = linkedRisks.some(r => r.id === riskId);
+    const isCurrentlySelected = isRiskSelected(riskId);
+
+    if (isCurrentlySelected) {
+      // Deselect: either remove from risksToAdd or add to risksToRemove
+      if (!wasOriginallyLinked) {
+        setRisksToAdd(prev => prev.filter(id => id !== riskId));
+      } else {
+        setRisksToRemove(prev => [...prev, riskId]);
+      }
+    } else {
+      // Select: either add to risksToAdd or remove from risksToRemove
+      if (wasOriginallyLinked) {
+        setRisksToRemove(prev => prev.filter(id => id !== riskId));
+      } else {
+        setRisksToAdd(prev => [...prev, riskId]);
+      }
+    }
+  };
+
+  const handleUnlinkRisk = (riskId: number) => {
+    const wasOriginallyLinked = linkedRisks.some(r => r.id === riskId);
+    if (wasOriginallyLinked) {
+      setRisksToRemove(prev => [...prev, riskId]);
+    } else {
+      setRisksToAdd(prev => prev.filter(id => id !== riskId));
+    }
+  };
+
+  // Get filtered risks for the modal
+  const filteredRisks = allProjectRisks.filter(risk =>
+    risk.risk_name.toLowerCase().includes(riskSearchQuery.toLowerCase())
+  );
+
+  // Get the display list of currently linked risks (including pending adds, excluding pending removes)
+  const displayedLinkedRisks = [
+    ...linkedRisks.filter(r => !risksToRemove.includes(r.id)),
+    ...allProjectRisks
+      .filter(r => risksToAdd.includes(r.id))
+      .map(r => ({
+        id: r.id,
+        risk_name: r.risk_name,
+        risk_level: r.risk_level,
+        severity: r.severity,
+      })),
+  ];
 
   if (!item) return null;
 
@@ -823,6 +1062,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                           <Tooltip title="Download file">
                             <IconButton
                               size="small"
+                              onClick={() => handleDownloadFile(file.id, file.fileName)}
                               sx={{
                                 color: "#475467",
                                 "&:hover": {
@@ -953,6 +1193,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Button
                     variant="contained"
+                    onClick={() => setIsLinkedRisksModalOpen(true)}
                     sx={{
                       borderRadius: 2,
                       minWidth: 155,
@@ -970,15 +1211,27 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                     Add/remove risks
                   </Button>
 
-                  <Typography sx={{ fontSize: 11, color: "#344054" }}>
-                    {`${linkedRisks.length || 0} risks linked`}
-                  </Typography>
+                  <Stack direction="row" spacing={2}>
+                    <Typography sx={{ fontSize: 11, color: "#344054" }}>
+                      {`${displayedLinkedRisks.length || 0} risks linked`}
+                    </Typography>
+                    {risksToAdd.length > 0 && (
+                      <Typography sx={{ fontSize: 11, color: "#13715B" }}>
+                        {`+${risksToAdd.length} pending save`}
+                      </Typography>
+                    )}
+                    {risksToRemove.length > 0 && (
+                      <Typography sx={{ fontSize: 11, color: "#D32F2F" }}>
+                        {`-${risksToRemove.length} pending delete`}
+                      </Typography>
+                    )}
+                  </Stack>
                 </Stack>
 
                 {/* Linked Risks List */}
-                {linkedRisks.length > 0 && (
+                {displayedLinkedRisks.length > 0 && (
                   <Stack spacing={1}>
-                    {linkedRisks.map((risk) => (
+                    {displayedLinkedRisks.map((risk) => (
                       <Box
                         key={risk.id}
                         sx={{
@@ -986,11 +1239,17 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                           alignItems: "center",
                           justifyContent: "space-between",
                           padding: "10px 12px",
-                          border: "1px solid #EAECF0",
+                          border: risksToAdd.includes(risk.id)
+                            ? "1px solid #FEF3C7"
+                            : "1px solid #EAECF0",
                           borderRadius: "4px",
-                          backgroundColor: "#FFFFFF",
+                          backgroundColor: risksToAdd.includes(risk.id)
+                            ? "#FFFBEB"
+                            : "#FFFFFF",
                           "&:hover": {
-                            backgroundColor: "#F9FAFB",
+                            backgroundColor: risksToAdd.includes(risk.id)
+                              ? "#FEF3C7"
+                              : "#F9FAFB",
                           },
                         }}
                       >
@@ -999,13 +1258,18 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                             sx={{
                               fontSize: 13,
                               fontWeight: 500,
-                              color: "#1F2937",
+                              color: risksToAdd.includes(risk.id) ? "#92400E" : "#1F2937",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
                             }}
                           >
                             {risk.risk_name}
+                            {risksToAdd.includes(risk.id) && (
+                              <Typography component="span" sx={{ fontSize: 10, color: "#92400E", ml: 1 }}>
+                                (pending)
+                              </Typography>
+                            )}
                           </Typography>
                           {risk.risk_level && (
                             <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
@@ -1015,24 +1279,10 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                         </Box>
 
                         <Box sx={{ display: "flex", gap: 0.5 }}>
-                          <Tooltip title="View details">
-                            <IconButton
-                              size="small"
-                              sx={{
-                                color: "#475467",
-                                "&:hover": {
-                                  color: "#13715B",
-                                  backgroundColor: "rgba(19, 113, 91, 0.08)",
-                                },
-                              }}
-                            >
-                              <ViewIcon size={16} />
-                            </IconButton>
-                          </Tooltip>
-
                           <Tooltip title="Unlink risk">
                             <IconButton
                               size="small"
+                              onClick={() => handleUnlinkRisk(risk.id)}
                               sx={{
                                 color: "#475467",
                                 "&:hover": {
@@ -1051,7 +1301,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                 )}
 
                 {/* Empty State */}
-                {linkedRisks.length === 0 && (
+                {displayedLinkedRisks.length === 0 && (
                   <Box
                     sx={{
                       border: "2px dashed #D0D5DD",
@@ -1168,6 +1418,204 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
           </Button>
         </Stack>
       </Stack>
+
+      {/* Linked Risks Modal */}
+      <Dialog
+        open={isLinkedRisksModalOpen}
+        onClose={() => setIsLinkedRisksModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "8px",
+            maxHeight: "80vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontSize: 16,
+            fontWeight: 600,
+            borderBottom: "1px solid #E5E7EB",
+            pb: 2,
+          }}
+        >
+          Link risks from risk database
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ p: 2 }}>
+            <TextField
+              placeholder="Search risks..."
+              value={riskSearchQuery}
+              onChange={(e) => setRiskSearchQuery(e.target.value)}
+              size="small"
+              fullWidth
+              sx={{ mb: 2 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon size={16} color="#9CA3AF" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {allProjectRisks.length === 0 ? (
+              <Box
+                sx={{
+                  textAlign: "center",
+                  py: 4,
+                  color: "#6B7280",
+                }}
+              >
+                <Typography>No risks available to link</Typography>
+                <Typography variant="caption" color="#9CA3AF">
+                  Create risks in the Risk Management section first
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{
+                  border: "1px solid #E5E7EB",
+                  maxHeight: "400px",
+                  overflow: "auto",
+                }}
+              >
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox" sx={{ backgroundColor: "#F9FAFB" }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Select</Typography>
+                      </TableCell>
+                      <TableCell sx={{ backgroundColor: "#F9FAFB" }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Risk Name</Typography>
+                      </TableCell>
+                      <TableCell sx={{ backgroundColor: "#F9FAFB" }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Risk Level</Typography>
+                      </TableCell>
+                      <TableCell sx={{ backgroundColor: "#F9FAFB" }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Description</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredRisks.map((risk) => {
+                      const isSelected = isRiskSelected(risk.id);
+                      const isOriginallyLinked = linkedRisks.some(r => r.id === risk.id);
+                      const isPendingAdd = risksToAdd.includes(risk.id);
+                      const isPendingRemove = risksToRemove.includes(risk.id);
+
+                      return (
+                        <TableRow
+                          key={risk.id}
+                          hover
+                          onClick={() => handleRiskToggle(risk.id)}
+                          sx={{
+                            cursor: "pointer",
+                            backgroundColor: isPendingAdd
+                              ? "#ECFDF5"
+                              : isPendingRemove
+                                ? "#FEF2F2"
+                                : "inherit",
+                          }}
+                        >
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={() => handleRiskToggle(risk.id)}
+                              size="small"
+                              sx={{
+                                color: "#D1D5DB",
+                                "&.Mui-checked": {
+                                  color: "#13715B",
+                                },
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: 13, color: "#1F2937" }}>
+                              {risk.risk_name}
+                              {isPendingAdd && (
+                                <Typography component="span" sx={{ fontSize: 10, color: "#059669", ml: 1 }}>
+                                  (to be linked)
+                                </Typography>
+                              )}
+                              {isPendingRemove && (
+                                <Typography component="span" sx={{ fontSize: 10, color: "#DC2626", ml: 1 }}>
+                                  (to be removed)
+                                </Typography>
+                              )}
+                              {isOriginallyLinked && !isPendingRemove && (
+                                <Typography component="span" sx={{ fontSize: 10, color: "#6B7280", ml: 1 }}>
+                                  (linked)
+                                </Typography>
+                              )}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
+                              {risk.risk_level || "-"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              sx={{
+                                fontSize: 12,
+                                color: "#6B7280",
+                                maxWidth: 200,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {risk.risk_description || "-"}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {filteredRisks.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                          <Typography color="#9CA3AF">
+                            No risks match your search
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ borderTop: "1px solid #E5E7EB", p: 2 }}>
+          <Button
+            onClick={() => setIsLinkedRisksModalOpen(false)}
+            sx={{
+              color: "#344054",
+              textTransform: "none",
+            }}
+          >
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => setIsLinkedRisksModalOpen(false)}
+            sx={{
+              backgroundColor: "#13715B",
+              textTransform: "none",
+              "&:hover": {
+                backgroundColor: "#0e5c47",
+              },
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Drawer>
   );
 };

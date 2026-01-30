@@ -48,6 +48,7 @@ interface FrameworkData {
   level_1_name: string;
   level_2_name: string;
   level_3_name?: string;
+  file_source?: string;
   structure: Level1Item[];
 }
 
@@ -608,10 +609,12 @@ export const CustomFrameworkViewer: React.FC<CustomFrameworkViewerProps> = ({
           level_1_name: data.level_1_name,
           level_2_name: data.level_2_name,
           level_3_name: data.level_3_name,
+          file_source: data.file_source,
         } : null}
         projectId={projectId}
         onSave={() => handleItemSave(selectedItem?.id)}
         apiServices={api}
+        isOrganizational={data?.is_organizational || false}
       />
     </Box>
   );
