@@ -211,15 +211,6 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
     loadFrameworks();
   }, [loadFrameworks]);
 
-  // Emit custom framework count to parent (AddFrameworkModal) for total count calculation
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("customFrameworkCountChanged", {
-        detail: { projectId: project.id, count: addedFrameworkIds.size },
-      })
-    );
-  }, [addedFrameworkIds.size, project.id]);
-
   const isFrameworkAdded = (fw: CustomFramework): boolean => {
     return addedFrameworkIds.has(fw.id);
   };
