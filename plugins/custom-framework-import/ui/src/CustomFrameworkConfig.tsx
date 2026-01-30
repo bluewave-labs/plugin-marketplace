@@ -172,6 +172,17 @@ export const CustomFrameworkConfig: React.FC<CustomFrameworkConfigProps> = ({
     loadProjects();
   }, [loadFrameworks, loadProjects]);
 
+  // Auto-dismiss success/error messages after 3 seconds
+  useEffect(() => {
+    if (success || error) {
+      const timer = setTimeout(() => {
+        setSuccess(null);
+        setError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, error]);
+
   const handleDeleteFramework = async () => {
     if (!selectedFramework) return;
 

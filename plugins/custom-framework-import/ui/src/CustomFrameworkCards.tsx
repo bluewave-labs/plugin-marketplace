@@ -233,6 +233,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
           isToast: true,
           visible: true,
         });
+        setTimeout(() => setAlert(null), 3000);
       }
       return;
     }
@@ -259,6 +260,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
             isToast: true,
             visible: true,
           });
+          setTimeout(() => setAlert(null), 3000);
         }
         // Emit custom event to notify other plugin components (e.g., CustomFrameworkControls)
         window.dispatchEvent(
@@ -275,6 +277,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
             isToast: true,
             visible: true,
           });
+          setTimeout(() => setAlert(null), 3000);
         }
       }
     } catch (err) {
@@ -286,6 +289,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
           isToast: true,
           visible: true,
         });
+        setTimeout(() => setAlert(null), 3000);
       }
     } finally {
       setActionLoading(null);
@@ -322,6 +326,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
             isToast: true,
             visible: true,
           });
+          setTimeout(() => setAlert(null), 3000);
         }
         // Emit custom event to notify other plugin components (e.g., CustomFrameworkControls)
         window.dispatchEvent(
@@ -338,6 +343,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
             isToast: true,
             visible: true,
           });
+          setTimeout(() => setAlert(null), 3000);
         }
       }
     } catch (err) {
@@ -349,6 +355,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
           isToast: true,
           visible: true,
         });
+        setTimeout(() => setAlert(null), 3000);
       }
     } finally {
       setActionLoading(null);

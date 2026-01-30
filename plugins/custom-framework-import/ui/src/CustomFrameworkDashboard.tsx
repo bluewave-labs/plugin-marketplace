@@ -654,17 +654,52 @@ export const CustomFrameworkDashboard: React.FC<CustomFrameworkDashboardProps> =
 
   return (
     <Stack spacing={0}>
-      {/* Section title for custom frameworks */}
-      {/* <Typography
+      {/* Visual separator and section header for custom frameworks */}
+      <Box
         sx={{
-          fontSize: 15,
-          fontWeight: 600,
-          color: "#000000",
-          mb: 2,
+          mt: 6,
+          mb: 3,
+          pt: 4,
+          borderTop: "1px solid #E5E7EB",
         }}
       >
-        Custom Frameworks
-      </Typography> */}
+        <Box
+          sx={{
+            pb: 2,
+            borderBottom: "2px solid #7C3AED",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <Box
+            sx={{
+              width: 4,
+              height: 20,
+              backgroundColor: "#7C3AED",
+              borderRadius: 1,
+            }}
+          />
+          <Typography
+            sx={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: "#101828",
+            }}
+          >
+            Custom Frameworks
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: 12,
+              color: "#667085",
+              ml: 1,
+            }}
+          >
+            Imported compliance frameworks
+          </Typography>
+        </Box>
+      </Box>
 
       {/* Top row: 3 cards in a grid */}
       <Box
