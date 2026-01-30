@@ -414,16 +414,29 @@ function createRouteHandlers(pluginKey, config) {
       );
       const linkedProjects = await Promise.all(
         linkedProjectsRaw.map(async (proj) => {
-          const controlsTable = meta[0].hierarchy_type === "three_level" ? "custom_framework_level3" : "custom_framework_level2";
-          const [progressData] = await sequelize.query(
-            `SELECT
-              COUNT(*) as total,
-              SUM(CASE WHEN status = 'Implemented' THEN 1 ELSE 0 END) as completed,
-              SUM(CASE WHEN owner IS NOT NULL THEN 1 ELSE 0 END) as assigned
-            FROM "${tenantId}".${controlsTable}_status
-            WHERE project_framework_id = :projectFrameworkId`,
-            { replacements: { projectFrameworkId: proj.project_framework_id } }
-          );
+          let progressData;
+          if (meta[0].hierarchy_type === "three_level") {
+            [progressData] = await sequelize.query(
+              `SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN l3.status = 'Implemented' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN l3.owner IS NOT NULL THEN 1 ELSE 0 END) as assigned
+              FROM "${tenantId}".custom_framework_level3_impl l3
+              JOIN "${tenantId}".custom_framework_level2_impl l2 ON l3.level2_impl_id = l2.id
+              WHERE l2.project_framework_id = :projectFrameworkId`,
+              { replacements: { projectFrameworkId: proj.project_framework_id } }
+            );
+          } else {
+            [progressData] = await sequelize.query(
+              `SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'Implemented' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN owner IS NOT NULL THEN 1 ELSE 0 END) as assigned
+              FROM "${tenantId}".custom_framework_level2_impl
+              WHERE project_framework_id = :projectFrameworkId`,
+              { replacements: { projectFrameworkId: proj.project_framework_id } }
+            );
+          }
           const total = parseInt(progressData[0]?.total || "0");
           const completed = parseInt(progressData[0]?.completed || "0");
           const assigned = parseInt(progressData[0]?.assigned || "0");

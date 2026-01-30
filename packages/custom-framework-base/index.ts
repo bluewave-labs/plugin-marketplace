@@ -576,19 +576,31 @@ function createRouteHandlers(pluginKey: string, config: FrameworkPluginConfig) {
       const linkedProjects = await Promise.all(
         (linkedProjectsRaw as any[]).map(async (proj) => {
           // Get total and completed controls for this project-framework
-          const controlsTable = meta[0].hierarchy_type === "three_level"
-            ? "custom_framework_level3"
-            : "custom_framework_level2";
+          // Use _impl tables (not _status) - for three_level, count level3_impl via level2_impl
+          let progressData: any[];
 
-          const [progressData] = await sequelize.query(
-            `SELECT
-              COUNT(*) as total,
-              SUM(CASE WHEN status = 'Implemented' THEN 1 ELSE 0 END) as completed,
-              SUM(CASE WHEN owner IS NOT NULL THEN 1 ELSE 0 END) as assigned
-            FROM "${tenantId}".${controlsTable}_status
-            WHERE project_framework_id = :projectFrameworkId`,
-            { replacements: { projectFrameworkId: proj.project_framework_id } }
-          );
+          if (meta[0].hierarchy_type === "three_level") {
+            [progressData] = await sequelize.query(
+              `SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN l3.status = 'Implemented' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN l3.owner IS NOT NULL THEN 1 ELSE 0 END) as assigned
+              FROM "${tenantId}".custom_framework_level3_impl l3
+              JOIN "${tenantId}".custom_framework_level2_impl l2 ON l3.level2_impl_id = l2.id
+              WHERE l2.project_framework_id = :projectFrameworkId`,
+              { replacements: { projectFrameworkId: proj.project_framework_id } }
+            );
+          } else {
+            [progressData] = await sequelize.query(
+              `SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'Implemented' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN owner IS NOT NULL THEN 1 ELSE 0 END) as assigned
+              FROM "${tenantId}".custom_framework_level2_impl
+              WHERE project_framework_id = :projectFrameworkId`,
+              { replacements: { projectFrameworkId: proj.project_framework_id } }
+            );
+          }
 
           const total = parseInt(progressData[0]?.total || '0');
           const completed = parseInt(progressData[0]?.completed || '0');
