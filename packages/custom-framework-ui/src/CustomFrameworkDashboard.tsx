@@ -431,17 +431,13 @@ export const CustomFrameworkDashboard: React.FC<CustomFrameworkDashboardProps> =
 
   // Listen for framework changes from other plugin components (e.g., CustomFrameworkCards)
   useEffect(() => {
-    const handleCustomFrameworkChange = async (event: CustomEvent) => {
+    const handleCustomFrameworkChange = (event: CustomEvent) => {
       if (event.detail?.projectId === project?.id) {
         // Invalidate cache before reloading
         if (project?.id && dashboardCache[project.id]) {
           delete dashboardCache[project.id];
         }
         loadData();
-        // Also notify parent to refresh its data
-        if (onRefresh) {
-          await onRefresh();
-        }
       }
     };
 
@@ -456,7 +452,7 @@ export const CustomFrameworkDashboard: React.FC<CustomFrameworkDashboardProps> =
         handleCustomFrameworkChange as EventListener
       );
     };
-  }, [loadData, project?.id, onRefresh]);
+  }, [loadData, project?.id]);
 
   // Helper functions matching the organizational dashboard
   const calculateProgress = (done: number, total: number) => {
