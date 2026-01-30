@@ -181,7 +181,7 @@ export const CustomFrameworkCards: React.FC<CustomFrameworkCardsProps> = ({
       // Fetch which custom frameworks are added to this project
       try {
         const addedResponse = await api.get(
-          `/plugins/${pluginKey}/projects/${project.id}/custom-frameworks`
+          `/plugins/${pluginKey}/projects/${project.id}/custom-frameworks?is_organizational=${project.is_organizational}`
         );
         let addedRaw = addedResponse.data;
         if (addedRaw && typeof addedRaw === 'object' && 'data' in addedRaw) {
