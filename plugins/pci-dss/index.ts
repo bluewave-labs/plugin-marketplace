@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "Payment Card Industry Data Security Standard compliance framework",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

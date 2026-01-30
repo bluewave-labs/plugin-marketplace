@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "ISO 27001 starter framework for information security management systems",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

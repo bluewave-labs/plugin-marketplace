@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "HIPAA Security Rule compliance framework for healthcare data protection",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

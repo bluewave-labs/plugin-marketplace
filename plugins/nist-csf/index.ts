@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "NIST Cybersecurity Framework for managing and reducing cybersecurity risk",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

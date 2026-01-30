@@ -358,7 +358,8 @@
             "renderType": "tab",
             "props": {
               "label": "Custom Frameworks",
-              "icon": "FileJson"
+              "icon": "FileJson",
+              "value": "custom-frameworks"
             }
           },
           {
@@ -447,6 +448,16 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
+          {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
@@ -533,6 +544,16 @@
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
           {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
@@ -621,6 +642,16 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
+          {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
@@ -707,6 +738,16 @@
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
           {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
@@ -795,6 +836,16 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
+          {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
@@ -881,6 +932,16 @@
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
           {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
@@ -969,6 +1030,16 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
+          {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
@@ -1055,6 +1126,16 @@
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
           {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
@@ -1143,6 +1224,16 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
+          {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
@@ -1230,6 +1321,16 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
+          {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",
             "renderType": "raw",
@@ -1316,6 +1417,16 @@
         "bundleUrl": "/api/plugins/custom-framework-import/ui/dist/index.esm.js",
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks"
+            }
+          },
           {
             "slotId": "modal.framework.selection",
             "componentName": "CustomFrameworkCards",

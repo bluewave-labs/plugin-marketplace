@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "Digital Operational Resilience Act compliance framework for financial services",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

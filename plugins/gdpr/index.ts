@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "General Data Protection Regulation (GDPR) compliance framework for EU data protection",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

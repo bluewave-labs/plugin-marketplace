@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "CIS Critical Security Controls v8 for cyber defense best practices",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

@@ -67,6 +67,19 @@ async function ensureSharedTables(sequelize, tenantId) {
     END $$;
   `);
   await sequelize.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = '${tenantId}'
+        AND table_name = 'custom_frameworks'
+        AND column_name = 'file_source'
+      ) THEN
+        ALTER TABLE "${tenantId}".custom_frameworks ADD COLUMN file_source VARCHAR(100);
+      END IF;
+    END $$;
+  `);
+  await sequelize.query(`
     CREATE TABLE IF NOT EXISTS "${tenantId}".custom_framework_level1 (
       id SERIAL PRIMARY KEY,
       framework_id INTEGER NOT NULL REFERENCES "${tenantId}".custom_frameworks(id) ON DELETE CASCADE,
@@ -1101,7 +1114,7 @@ var plugin = createFrameworkPlugin({
   description: "General Data Protection Regulation (GDPR) compliance framework for EU data protection",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template_default,
+  template: template_default.framework,
   autoImport: true
 });
 var { metadata, install, uninstall, validateConfig, router } = plugin;

@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "AI Ethics and Governance framework for responsible AI development and deployment",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

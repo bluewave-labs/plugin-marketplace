@@ -13,7 +13,7 @@ const plugin = createFrameworkPlugin({
   description: "California Consumer Privacy Act compliance framework for consumer data privacy",
   version: "1.0.0",
   author: "VerifyWise",
-  template: template as any,
+  template: (template as any).framework,
   autoImport: true,
 });
 

@@ -131,6 +131,21 @@ async function ensureSharedTables(sequelize: any, tenantId: string): Promise<voi
     END $$;
   `);
 
+  // Add file_source column if it doesn't exist (for migration from old schema)
+  await sequelize.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = '${tenantId}'
+        AND table_name = 'custom_frameworks'
+        AND column_name = 'file_source'
+      ) THEN
+        ALTER TABLE "${tenantId}".custom_frameworks ADD COLUMN file_source VARCHAR(100);
+      END IF;
+    END $$;
+  `);
+
   // Level 1 structure
   await sequelize.query(`
     CREATE TABLE IF NOT EXISTS "${tenantId}".custom_framework_level1 (
