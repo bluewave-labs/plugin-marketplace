@@ -724,17 +724,16 @@ function createRouteHandlers(pluginKey: string, config: FrameworkPluginConfig) {
     const isOrganizational = query.is_organizational === "true";
 
     try {
+      // Return all frameworks for this project - UI filters by is_organizational
       const [frameworks] = await sequelize.query(
         `
         SELECT cf.*, cf.id as framework_id, cfp.id as project_framework_id, cfp.created_at as added_at
         FROM "${tenantId}".custom_frameworks cf
         JOIN "${tenantId}".custom_framework_projects cfp ON cf.id = cfp.framework_id
         WHERE cfp.project_id = :projectId
-          AND cf.is_organizational = :isOrganizational
-          AND (cf.plugin_key = :pluginKey OR cf.plugin_key IS NULL)
         ORDER BY cf.name
       `,
-        { replacements: { projectId, isOrganizational, pluginKey } }
+        { replacements: { projectId } }
       );
 
       return { status: 200, data: frameworks };
