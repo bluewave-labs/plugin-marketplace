@@ -18,8 +18,10 @@ import {
   Paper,
   Chip,
   TablePagination,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { Building2, Layers } from "lucide-react";
+import { Building2, Layers, Eye } from "lucide-react";
 
 // VerifyWise standard table styles (matching themes/tables.ts)
 const tableStyles = {
@@ -101,12 +103,14 @@ interface CustomFramework {
 
 interface FrameworksTableProps {
   frameworks: CustomFramework[];
+  onViewDetails?: (framework: CustomFramework) => void;
   showPagination?: boolean;
   rowsPerPageOptions?: number[];
 }
 
 export const FrameworksTable: React.FC<FrameworksTableProps> = ({
   frameworks,
+  onViewDetails,
   showPagination = true,
   rowsPerPageOptions = [5, 10, 25],
 }) => {
@@ -138,6 +142,11 @@ export const FrameworksTable: React.FC<FrameworksTableProps> = ({
             <TableCell sx={tableStyles.primary.header.cell}>Hierarchy</TableCell>
             <TableCell sx={tableStyles.primary.header.cell}>Structure</TableCell>
             <TableCell sx={tableStyles.primary.header.cell}>Created</TableCell>
+            {onViewDetails && (
+              <TableCell sx={{ ...tableStyles.primary.header.cell, textAlign: "center" }}>
+                Actions
+              </TableCell>
+            )}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -230,6 +239,30 @@ export const FrameworksTable: React.FC<FrameworksTableProps> = ({
                   {new Date(fw.created_at).toLocaleDateString()}
                 </Typography>
               </TableCell>
+
+              {/* Actions */}
+              {onViewDetails && (
+                <TableCell sx={{ ...tableStyles.primary.body.cell, textAlign: "center" }}>
+                  <Tooltip title="View details">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(fw);
+                      }}
+                      sx={{
+                        color: "#667085",
+                        "&:hover": {
+                          color: "#13715B",
+                          backgroundColor: "rgba(19, 113, 91, 0.08)",
+                        },
+                      }}
+                    >
+                      <Eye size={16} />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

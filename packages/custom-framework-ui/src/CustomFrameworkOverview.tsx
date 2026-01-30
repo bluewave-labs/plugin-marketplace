@@ -13,6 +13,18 @@ import {
   LinearProgress,
 } from "@mui/material";
 
+// Global cache to prevent duplicate API calls across component instances
+const overviewCache: {
+  [projectId: number]: {
+    frameworks: any[];
+    progressData: any[];
+    timestamp: number;
+    loading: boolean;
+    loadingPromise?: Promise<void>;
+  };
+} = {};
+const CACHE_TTL = 30000; // 30 seconds
+
 interface CustomFramework {
   id: number;
   framework_id: number;
@@ -152,6 +164,39 @@ export const CustomFrameworkOverview: React.FC<CustomFrameworkOverviewProps> = (
       return;
     }
 
+    const projectId = project.id;
+    const now = Date.now();
+
+    // Check cache first
+    const cached = overviewCache[projectId];
+    if (cached && (now - cached.timestamp < CACHE_TTL)) {
+      setFrameworks(cached.frameworks);
+      setProgressData(cached.progressData);
+      setLoading(false);
+      return;
+    }
+
+    // If another instance is already loading, wait for it
+    if (cached?.loading && cached.loadingPromise) {
+      await cached.loadingPromise;
+      const updatedCache = overviewCache[projectId];
+      if (updatedCache) {
+        setFrameworks(updatedCache.frameworks);
+        setProgressData(updatedCache.progressData);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Mark as loading
+    overviewCache[projectId] = {
+      frameworks: [],
+      progressData: [],
+      timestamp: 0,
+      loading: true,
+    };
+
+    const loadingPromise = (async () => {
     try {
       setLoading(true);
 
@@ -200,13 +245,29 @@ export const CustomFrameworkOverview: React.FC<CustomFrameworkOverviewProps> = (
 
       const progress = await Promise.all(progressPromises);
       setProgressData(progress);
+
+      // Store in cache
+      overviewCache[projectId] = {
+        frameworks: frameworksArray,
+        progressData: progress,
+        timestamp: Date.now(),
+        loading: false,
+      };
     } catch (err) {
       console.error("[CustomFrameworkOverview] Error loading data:", err);
       setFrameworks([]);
       setProgressData([]);
+      // Clear loading state in cache
+      if (overviewCache[projectId]) {
+        overviewCache[projectId].loading = false;
+      }
     } finally {
       setLoading(false);
     }
+    })();
+
+    overviewCache[projectId].loadingPromise = loadingPromise;
+    await loadingPromise;
   }, [project?.id, pluginKey]);
 
   useEffect(() => {
@@ -217,6 +278,10 @@ export const CustomFrameworkOverview: React.FC<CustomFrameworkOverviewProps> = (
   useEffect(() => {
     const handleCustomFrameworkChange = (event: CustomEvent) => {
       if (event.detail?.projectId === project?.id) {
+        // Invalidate cache before reloading
+        if (project?.id && overviewCache[project.id]) {
+          delete overviewCache[project.id];
+        }
         loadData();
       }
     };
