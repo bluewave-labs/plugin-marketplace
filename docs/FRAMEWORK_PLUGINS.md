@@ -86,17 +86,22 @@ Framework plugins provide compliance frameworks that can be added to projects. T
 ```
 plugins/
 └── {framework-key}/
+    ├── template.json         # REQUIRED: Framework structure (controls, requirements)
     ├── icon.svg              # Framework icon
+    ├── index.ts              # Auto-generated from template.json
     ├── dist/
-    │   └── index.js          # Backend logic
-    ├── ui/
-    │   ├── src/
-    │   │   └── index.tsx     # UI components
-    │   └── dist/
-    │       └── index.esm.js  # Built UI bundle
-    └── data/
-        └── framework.json    # Framework definition (optional)
+    │   └── index.js          # Built backend (auto-generated)
+    └── ui/
+        └── dist/             # Symlink to shared custom-framework-import UI
+            └── index.esm.js
 ```
+
+> **CRITICAL**: The `template.json` file is **REQUIRED** for framework plugins. Without it:
+> - The plugin will install successfully
+> - But NO framework will appear in Settings > Custom Frameworks
+> - Users will see the plugin as "installed" but it won't do anything
+>
+> The `template.json` contains the actual framework structure (chapters, controls, articles, evidence examples, etc.) that gets imported into the database when the plugin is installed.
 
 ### plugins.json Entry
 
@@ -172,10 +177,67 @@ plugins/
 ### Step 1: Create Plugin Directory
 
 ```bash
-mkdir -p plugins/my-framework/{dist,ui/dist,data}
+mkdir -p plugins/my-framework/{dist,ui/dist}
 ```
 
-### Step 2: Add to plugins.json
+### Step 2: Create template.json (REQUIRED)
+
+This is the **most important file**. It defines the actual framework structure that gets imported into the database.
+
+Create `plugins/my-framework/template.json`:
+
+```json
+{
+  "id": "my-framework",
+  "name": "My Framework Name",
+  "description": "Brief description of the framework.",
+  "category": "Compliance",
+  "tags": ["compliance", "framework"],
+  "framework": {
+    "name": "My Framework Name",
+    "description": "Detailed description for the framework",
+    "version": "1.0.0",
+    "is_organizational": true,
+    "hierarchy": {
+      "type": "two_level",
+      "level1_name": "Category",
+      "level2_name": "Control"
+    },
+    "structure": [
+      {
+        "title": "Category 1: Example Category",
+        "description": "Description of this category",
+        "order_no": 1,
+        "items": [
+          {
+            "title": "Control 1.1 - Example Control",
+            "description": "What this control requires",
+            "order_no": 1,
+            "summary": "Brief summary of the control",
+            "questions": [
+              "Is requirement X met?",
+              "Is requirement Y documented?"
+            ],
+            "evidence_examples": [
+              "Policy document",
+              "Audit logs",
+              "Training records"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Template Structure:**
+- `hierarchy.type`: Use `"two_level"` for Category → Control, or `"three_level"` for Category → Subcategory → Control
+- `hierarchy.level1_name`, `level2_name`, `level3_name`: Labels shown in the UI (e.g., "Chapter", "Article", "Requirement")
+- `is_organizational`: `true` for org-level frameworks, `false` for project-specific
+- `structure`: Array of level 1 items, each containing `items` array for level 2
+
+### Step 3: Add to plugins.json
 
 ```json
 {
@@ -236,7 +298,7 @@ mkdir -p plugins/my-framework/{dist,ui/dist,data}
 }
 ```
 
-### Step 3: Create Framework Icon
+### Step 4: Create Framework Icon
 
 Create `plugins/my-framework/icon.svg`:
 
@@ -250,52 +312,55 @@ Create `plugins/my-framework/icon.svg`:
 </svg>
 ```
 
-### Step 4: Create Backend Entry Point
+### Step 5: Build the Plugin (REQUIRED)
 
-Create `plugins/my-framework/dist/index.js`:
+The build script automatically:
+1. Reads your `template.json`
+2. Generates `index.ts` from it
+3. Compiles to `dist/index.js`
+4. Creates symlink to shared UI
 
-```javascript
-/**
- * My Framework Plugin
- *
- * Provides compliance framework for [purpose]
- */
+```bash
+# Build a specific framework plugin
+npm run build:framework-plugins -- my-framework
 
-export async function install(userId, tenantId, config, context) {
-  console.log(`[MyFramework] Installing for tenant ${tenantId}`);
-
-  // Import framework data into database
-  // This typically creates custom_frameworks, controls, etc.
-
-  return { success: true, message: "Framework installed successfully" };
-}
-
-export async function uninstall(userId, tenantId, context) {
-  console.log(`[MyFramework] Uninstalling for tenant ${tenantId}`);
-
-  // Clean up framework data
-
-  return { success: true, message: "Framework uninstalled successfully" };
-}
-
-export const router = {
-  "GET /frameworks": async (context) => {
-    // Return available frameworks for this plugin
-    return { data: [] };
-  },
-
-  "GET /frameworks/:frameworkId/progress": async (context) => {
-    // Return progress statistics
-    return {
-      data: {
-        overall: { total: 0, completed: 0, percentage: 0 }
-      }
-    };
-  }
-};
+# Or build all framework plugins
+npm run build:framework-plugins
 ```
 
-### Step 5: Use Shared UI Components
+**Without this step, the plugin will not work.** The `dist/index.js` contains the logic that imports the framework template into the database on installation.
+
+### Step 6: Deploy to Server
+
+Copy the built plugin to the VerifyWise server cache:
+
+```bash
+cp -r plugins/my-framework /path/to/verifywise/Servers/temp/plugins/
+```
+
+### Step 7: Install the Plugin
+
+1. Go to **Plugins > Frameworks** tab
+2. Find your framework and click **Install**
+3. The framework template will auto-import to the database
+4. Verify in **Settings > Custom Frameworks** that the framework appears
+
+### Checklist
+
+Before considering a framework plugin complete, verify:
+
+- [ ] `template.json` exists with valid framework structure
+- [ ] `icon.svg` exists
+- [ ] Plugin entry added to `plugins.json` with `category: "compliance"`
+- [ ] Plugin built with `npm run build:framework-plugins`
+- [ ] `dist/index.js` exists (created by build)
+- [ ] Plugin copied to server cache
+- [ ] Plugin installed successfully
+- [ ] **Framework appears in Settings > Custom Frameworks** (this is the real test!)
+
+---
+
+## Shared UI Components
 
 Framework plugins use the shared `custom-framework-ui` package:
 
