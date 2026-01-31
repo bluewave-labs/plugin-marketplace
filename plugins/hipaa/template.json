@@ -3,12 +3,17 @@
   "name": "HIPAA Security Rule Framework",
   "description": "Health Insurance Portability and Accountability Act Security Rule framework for protecting electronic protected health information (ePHI).",
   "category": "Healthcare",
-  "tags": ["HIPAA", "Healthcare", "PHI", "Security"],
+  "tags": [
+    "HIPAA",
+    "Healthcare",
+    "PHI",
+    "Security"
+  ],
   "framework": {
     "name": "HIPAA Security Rule Framework",
     "description": "Framework for HIPAA Security Rule compliance covering Administrative, Physical, and Technical Safeguards",
     "version": "1.0.0",
-    "is_organizational": true,
+    "is_organizational": false,
     "hierarchy": {
       "type": "three_level",
       "level1_name": "Safeguard Category",

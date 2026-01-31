@@ -965,12 +965,18 @@ var template_default = {
   name: "AI Ethics & Governance Framework",
   description: "Comprehensive framework for responsible AI development and deployment, covering fairness, transparency, accountability, and human oversight.",
   category: "AI Governance",
-  tags: ["AI", "Ethics", "Governance", "Responsible AI", "Fairness"],
+  tags: [
+    "AI",
+    "Ethics",
+    "Governance",
+    "Responsible AI",
+    "Fairness"
+  ],
   framework: {
     name: "AI Ethics & Governance Framework",
     description: "Framework for responsible AI development, deployment, and governance",
     version: "1.0.0",
-    is_organizational: true,
+    is_organizational: false,
     hierarchy: {
       type: "two_level",
       level1_name: "Principle",
@@ -992,7 +998,11 @@ var template_default = {
               "Is algorithmic fairness measured?",
               "Are outcomes monitored for disparate impact?"
             ],
-            evidence_examples: ["Bias assessment reports", "Fairness metrics", "Monitoring dashboards"]
+            evidence_examples: [
+              "Bias assessment reports",
+              "Fairness metrics",
+              "Monitoring dashboards"
+            ]
           },
           {
             title: "Inclusive Design",
@@ -1004,7 +1014,11 @@ var template_default = {
               "Is accessibility considered?",
               "Are edge cases tested?"
             ],
-            evidence_examples: ["Design documentation", "Stakeholder input", "Accessibility testing"]
+            evidence_examples: [
+              "Design documentation",
+              "Stakeholder input",
+              "Accessibility testing"
+            ]
           },
           {
             title: "Fairness Monitoring",
@@ -1016,7 +1030,11 @@ var template_default = {
               "Are alerts configured for fairness drift?",
               "Is there a remediation process?"
             ],
-            evidence_examples: ["Monitoring setup", "Alert configuration", "Remediation records"]
+            evidence_examples: [
+              "Monitoring setup",
+              "Alert configuration",
+              "Remediation records"
+            ]
           }
         ]
       },
@@ -1035,7 +1053,11 @@ var template_default = {
               "Is training data documented?",
               "Are limitations clearly stated?"
             ],
-            evidence_examples: ["Model cards", "Data sheets", "Technical documentation"]
+            evidence_examples: [
+              "Model cards",
+              "Data sheets",
+              "Technical documentation"
+            ]
           },
           {
             title: "Decision Explainability",
@@ -1047,7 +1069,11 @@ var template_default = {
               "Are explanations understandable to users?",
               "Is explainability appropriate to the risk level?"
             ],
-            evidence_examples: ["Explanation mechanisms", "User testing", "Risk-based approach"]
+            evidence_examples: [
+              "Explanation mechanisms",
+              "User testing",
+              "Risk-based approach"
+            ]
           },
           {
             title: "Disclosure Requirements",
@@ -1059,7 +1085,11 @@ var template_default = {
               "Is disclosure clear and prominent?",
               "Are disclosure requirements documented?"
             ],
-            evidence_examples: ["Disclosure policy", "User notifications", "Compliance records"]
+            evidence_examples: [
+              "Disclosure policy",
+              "User notifications",
+              "Compliance records"
+            ]
           }
         ]
       },
@@ -1078,7 +1108,11 @@ var template_default = {
               "Are roles and responsibilities defined?",
               "Is there executive sponsorship?"
             ],
-            evidence_examples: ["Governance charter", "RACI matrix", "Committee records"]
+            evidence_examples: [
+              "Governance charter",
+              "RACI matrix",
+              "Committee records"
+            ]
           },
           {
             title: "AI Risk Management",
@@ -1090,7 +1124,11 @@ var template_default = {
               "Is there an AI risk register?",
               "Are high-risk AI systems subject to additional controls?"
             ],
-            evidence_examples: ["AI risk framework", "Risk register", "Control documentation"]
+            evidence_examples: [
+              "AI risk framework",
+              "Risk register",
+              "Control documentation"
+            ]
           },
           {
             title: "Audit & Compliance",
@@ -1102,7 +1140,11 @@ var template_default = {
               "Are audit findings tracked?",
               "Is there regulatory compliance monitoring?"
             ],
-            evidence_examples: ["Audit reports", "Finding remediation", "Compliance tracking"]
+            evidence_examples: [
+              "Audit reports",
+              "Finding remediation",
+              "Compliance tracking"
+            ]
           }
         ]
       },
@@ -1121,7 +1163,11 @@ var template_default = {
               "Can humans override AI decisions?",
               "Is the level of automation appropriate?"
             ],
-            evidence_examples: ["Review processes", "Override mechanisms", "Automation assessment"]
+            evidence_examples: [
+              "Review processes",
+              "Override mechanisms",
+              "Automation assessment"
+            ]
           },
           {
             title: "Contestability",
@@ -1133,7 +1179,11 @@ var template_default = {
               "Is there a review process?",
               "Are appeals tracked and analyzed?"
             ],
-            evidence_examples: ["Appeal process", "Review records", "Appeal analytics"]
+            evidence_examples: [
+              "Appeal process",
+              "Review records",
+              "Appeal analytics"
+            ]
           },
           {
             title: "Kill Switch",
@@ -1145,7 +1195,11 @@ var template_default = {
               "Are shutdown procedures documented?",
               "Is there a rollback capability?"
             ],
-            evidence_examples: ["Shutdown procedures", "Rollback plans", "Testing records"]
+            evidence_examples: [
+              "Shutdown procedures",
+              "Rollback plans",
+              "Testing records"
+            ]
           }
         ]
       },
@@ -1164,7 +1218,11 @@ var template_default = {
               "Are privacy-enhancing technologies used?",
               "Is data minimization practiced?"
             ],
-            evidence_examples: ["Consent records", "PET implementation", "Data minimization evidence"]
+            evidence_examples: [
+              "Consent records",
+              "PET implementation",
+              "Data minimization evidence"
+            ]
           },
           {
             title: "Model Security",
@@ -1176,7 +1234,11 @@ var template_default = {
               "Is adversarial robustness tested?",
               "Are model access controls in place?"
             ],
-            evidence_examples: ["Security controls", "Adversarial testing", "Access logs"]
+            evidence_examples: [
+              "Security controls",
+              "Adversarial testing",
+              "Access logs"
+            ]
           }
         ]
       }
