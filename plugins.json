@@ -1552,6 +1552,474 @@
           }
         ]
       }
+    },
+    {
+      "key": "uae-pdpl",
+      "name": "UAE Data Protection",
+      "displayName": "UAE PDPL",
+      "description": "UAE Personal Data Protection Law (PDPL 45/2021) and AI governance framework.",
+      "region": "United Arab Emirates",
+      "longDescription": "UAE Data Protection framework plugin provides comprehensive coverage of Federal Decree-Law No. 45/2021 on Personal Data Protection, DIFC Regulation 10 for financial services, and the UAE AI Ethics Charter (2024). Includes data subject rights, lawful processing bases, cross-border transfer requirements, and AI governance principles.",
+      "version": "1.0.0",
+      "author": "VerifyWise",
+      "category": "compliance",
+      "iconUrl": "plugins/uae-pdpl/icon.svg",
+      "documentationUrl": "https://docs.verifywise.com/frameworks/uae-pdpl",
+      "supportUrl": "https://support.verifywise.com",
+      "isOfficial": true,
+      "isPublished": true,
+      "requiresConfiguration": false,
+      "installationType": "tenant_scoped",
+      "features": [
+        {
+          "name": "PDPL 45/2021",
+          "description": "Federal Personal Data Protection Law requirements",
+          "displayOrder": 1
+        },
+        {
+          "name": "DIFC Regulation 10",
+          "description": "Financial services data protection requirements",
+          "displayOrder": 2
+        },
+        {
+          "name": "AI Ethics Charter",
+          "description": "UAE AI Ethics Charter (2024) compliance",
+          "displayOrder": 3
+        },
+        {
+          "name": "Auto-Import",
+          "description": "Framework automatically imported on plugin installation",
+          "displayOrder": 4
+        }
+      ],
+      "tags": [
+        "uae",
+        "pdpl",
+        "difc",
+        "ai-ethics",
+        "data-protection",
+        "compliance",
+        "gulf"
+      ],
+      "pluginPath": "plugins/uae-pdpl",
+      "entryPoint": "dist/index.js",
+      "dependencies": {},
+      "ui": {
+        "bundleUrl": "/api/plugins/uae-pdpl/ui/dist/index.esm.js",
+        "globalName": "PluginCustomFrameworkImport",
+        "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
+              "pluginKey": "uae-pdpl"
+            }
+          },
+          {
+            "slotId": "modal.framework.selection",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "uae-pdpl"
+            }
+          },
+          {
+            "slotId": "page.controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "uae-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "uae-pdpl"
+            }
+          },
+          {
+            "slotId": "page.framework-dashboard.custom",
+            "componentName": "CustomFrameworkDashboard",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "uae-pdpl"
+            }
+          },
+          {
+            "slotId": "page.org-framework.management",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "uae-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-overview.custom-framework",
+            "componentName": "CustomFrameworkOverview",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "uae-pdpl"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "saudi-pdpl",
+      "name": "Saudi Arabia Data Protection",
+      "displayName": "Saudi PDPL",
+      "description": "Saudi Arabia Personal Data Protection Law and SDAIA AI governance guidelines.",
+      "region": "Saudi Arabia",
+      "longDescription": "Saudi Arabia Data Protection framework plugin provides comprehensive coverage of the Personal Data Protection Law (PDPL, in force since September 2023), SDAIA Ethics Principles (2023), and Generative AI Guidelines (2024). Includes data subject rights, consent requirements, cross-border transfer restrictions, and AI ethics compliance with SDAIA accreditation requirements.",
+      "version": "1.0.0",
+      "author": "VerifyWise",
+      "category": "compliance",
+      "iconUrl": "plugins/saudi-pdpl/icon.svg",
+      "documentationUrl": "https://docs.verifywise.com/frameworks/saudi-pdpl",
+      "supportUrl": "https://support.verifywise.com",
+      "isOfficial": true,
+      "isPublished": true,
+      "requiresConfiguration": false,
+      "installationType": "tenant_scoped",
+      "features": [
+        {
+          "name": "PDPL Compliance",
+          "description": "Personal Data Protection Law (since Sep 2023)",
+          "displayOrder": 1
+        },
+        {
+          "name": "SDAIA Ethics",
+          "description": "SDAIA Ethics Principles (2023) requirements",
+          "displayOrder": 2
+        },
+        {
+          "name": "Generative AI",
+          "description": "SDAIA Generative AI Guidelines (2024)",
+          "displayOrder": 3
+        },
+        {
+          "name": "Auto-Import",
+          "description": "Framework automatically imported on plugin installation",
+          "displayOrder": 4
+        }
+      ],
+      "tags": [
+        "saudi-arabia",
+        "pdpl",
+        "sdaia",
+        "generative-ai",
+        "data-protection",
+        "compliance",
+        "gulf"
+      ],
+      "pluginPath": "plugins/saudi-pdpl",
+      "entryPoint": "dist/index.js",
+      "dependencies": {},
+      "ui": {
+        "bundleUrl": "/api/plugins/saudi-pdpl/ui/dist/index.esm.js",
+        "globalName": "PluginCustomFrameworkImport",
+        "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
+              "pluginKey": "saudi-pdpl"
+            }
+          },
+          {
+            "slotId": "modal.framework.selection",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "saudi-pdpl"
+            }
+          },
+          {
+            "slotId": "page.controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "saudi-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "saudi-pdpl"
+            }
+          },
+          {
+            "slotId": "page.framework-dashboard.custom",
+            "componentName": "CustomFrameworkDashboard",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "saudi-pdpl"
+            }
+          },
+          {
+            "slotId": "page.org-framework.management",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "saudi-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-overview.custom-framework",
+            "componentName": "CustomFrameworkOverview",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "saudi-pdpl"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "qatar-pdpl",
+      "name": "Qatar Data Privacy Law",
+      "displayName": "Qatar PDPL",
+      "description": "Qatar Personal Data Privacy Law 13/2016 and national AI policy framework.",
+      "region": "Qatar",
+      "longDescription": "Qatar Data Privacy framework plugin provides comprehensive coverage of Personal Data Privacy Law 13/2016 and the draft national AI policy (2024). Includes data subject rights, consent requirements, cross-border transfer restrictions with regulator approval, and QCB FinTech sandbox guidelines for AI in financial services.",
+      "version": "1.0.0",
+      "author": "VerifyWise",
+      "category": "compliance",
+      "iconUrl": "plugins/qatar-pdpl/icon.svg",
+      "documentationUrl": "https://docs.verifywise.com/frameworks/qatar-pdpl",
+      "supportUrl": "https://support.verifywise.com",
+      "isOfficial": true,
+      "isPublished": true,
+      "requiresConfiguration": false,
+      "installationType": "tenant_scoped",
+      "features": [
+        {
+          "name": "Law 13/2016",
+          "description": "Personal Data Privacy Law requirements",
+          "displayOrder": 1
+        },
+        {
+          "name": "AI Policy",
+          "description": "Draft national AI policy (2024) compliance",
+          "displayOrder": 2
+        },
+        {
+          "name": "QCB FinTech",
+          "description": "QCB FinTech sandbox AI guidelines",
+          "displayOrder": 3
+        },
+        {
+          "name": "Auto-Import",
+          "description": "Framework automatically imported on plugin installation",
+          "displayOrder": 4
+        }
+      ],
+      "tags": [
+        "qatar",
+        "pdpl",
+        "data-privacy",
+        "fintech",
+        "ai-policy",
+        "compliance",
+        "gulf"
+      ],
+      "pluginPath": "plugins/qatar-pdpl",
+      "entryPoint": "dist/index.js",
+      "dependencies": {},
+      "ui": {
+        "bundleUrl": "/api/plugins/qatar-pdpl/ui/dist/index.esm.js",
+        "globalName": "PluginCustomFrameworkImport",
+        "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
+              "pluginKey": "qatar-pdpl"
+            }
+          },
+          {
+            "slotId": "modal.framework.selection",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "qatar-pdpl"
+            }
+          },
+          {
+            "slotId": "page.controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "qatar-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "qatar-pdpl"
+            }
+          },
+          {
+            "slotId": "page.framework-dashboard.custom",
+            "componentName": "CustomFrameworkDashboard",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "qatar-pdpl"
+            }
+          },
+          {
+            "slotId": "page.org-framework.management",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "qatar-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-overview.custom-framework",
+            "componentName": "CustomFrameworkOverview",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "qatar-pdpl"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "bahrain-pdpl",
+      "name": "Bahrain Data Protection",
+      "displayName": "Bahrain PDPL",
+      "description": "Bahrain Personal Data Protection Law 30/2018 and AI governance in open banking.",
+      "region": "Bahrain",
+      "longDescription": "Bahrain Data Protection framework plugin provides comprehensive coverage of Personal Data Protection Law 30/2018 (PDPL), CBB notice on AI use in Open Banking (2023), and the EDB AI Ethics Pledge. Includes data subject rights, Central Bank sandbox requirements, and ongoing supervisory review compliance for AI systems in financial services.",
+      "version": "1.0.0",
+      "author": "VerifyWise",
+      "category": "compliance",
+      "iconUrl": "plugins/bahrain-pdpl/icon.svg",
+      "documentationUrl": "https://docs.verifywise.com/frameworks/bahrain-pdpl",
+      "supportUrl": "https://support.verifywise.com",
+      "isOfficial": true,
+      "isPublished": true,
+      "requiresConfiguration": false,
+      "installationType": "tenant_scoped",
+      "features": [
+        {
+          "name": "PDPL 30/2018",
+          "description": "Personal Data Protection Law requirements",
+          "displayOrder": 1
+        },
+        {
+          "name": "CBB AI Notice",
+          "description": "Central Bank AI in Open Banking (2023)",
+          "displayOrder": 2
+        },
+        {
+          "name": "EDB AI Ethics",
+          "description": "Economic Development Board AI Ethics Pledge",
+          "displayOrder": 3
+        },
+        {
+          "name": "Auto-Import",
+          "description": "Framework automatically imported on plugin installation",
+          "displayOrder": 4
+        }
+      ],
+      "tags": [
+        "bahrain",
+        "pdpl",
+        "cbb",
+        "open-banking",
+        "ai-ethics",
+        "compliance",
+        "gulf"
+      ],
+      "pluginPath": "plugins/bahrain-pdpl",
+      "entryPoint": "dist/index.js",
+      "dependencies": {},
+      "ui": {
+        "bundleUrl": "/api/plugins/bahrain-pdpl/ui/dist/index.esm.js",
+        "globalName": "PluginCustomFrameworkImport",
+        "slots": [
+          {
+            "slotId": "page.settings.tabs",
+            "componentName": "CustomFrameworkConfig",
+            "renderType": "tab",
+            "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
+              "pluginKey": "bahrain-pdpl"
+            }
+          },
+          {
+            "slotId": "modal.framework.selection",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "bahrain-pdpl"
+            }
+          },
+          {
+            "slotId": "page.controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "bahrain-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-controls.custom-framework",
+            "componentName": "CustomFrameworkControls",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "bahrain-pdpl"
+            }
+          },
+          {
+            "slotId": "page.framework-dashboard.custom",
+            "componentName": "CustomFrameworkDashboard",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "bahrain-pdpl"
+            }
+          },
+          {
+            "slotId": "page.org-framework.management",
+            "componentName": "CustomFrameworkCards",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "bahrain-pdpl"
+            }
+          },
+          {
+            "slotId": "page.project-overview.custom-framework",
+            "componentName": "CustomFrameworkOverview",
+            "renderType": "raw",
+            "props": {
+              "pluginKey": "bahrain-pdpl"
+            }
+          }
+        ]
+      }
     }
   ],
   "categories": [

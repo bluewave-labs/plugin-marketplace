@@ -214,6 +214,10 @@ Framework plugins should include a `region` field:
 | International | 🌐 | ISO 27001, CIS Controls, PCI-DSS |
 | United States | 🇺🇸 | SOC 2, HIPAA, CCPA, NIST CSF |
 | European Union | 🇪🇺 | GDPR, DORA |
+| United Arab Emirates | 🇦🇪 | UAE PDPL, DIFC Regulation 10 |
+| Saudi Arabia | 🇸🇦 | Saudi PDPL, SDAIA Guidelines |
+| Qatar | 🇶🇦 | Qatar PDPL |
+| Bahrain | 🇧🇭 | Bahrain PDPL, CBB AI Notice |
 | Canada | 🇨🇦 | PIPEDA |
 | United Kingdom | 🇬🇧 | UK GDPR |
 | Australia | 🇦🇺 | Privacy Act |

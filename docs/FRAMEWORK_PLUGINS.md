@@ -53,6 +53,30 @@ Framework plugins provide compliance frameworks that can be added to projects. T
 | GDPR | `gdpr` | General Data Protection Regulation |
 | DORA | `dora` | Digital Operational Resilience Act |
 
+### United Arab Emirates 🇦🇪
+
+| Framework | Key | Description |
+|-----------|-----|-------------|
+| UAE PDPL | `uae-pdpl` | Personal Data Protection Law 45/2021, DIFC Regulation 10, AI Ethics Charter |
+
+### Saudi Arabia 🇸🇦
+
+| Framework | Key | Description |
+|-----------|-----|-------------|
+| Saudi PDPL | `saudi-pdpl` | Personal Data Protection Law, SDAIA Ethics Principles, Generative AI Guidelines |
+
+### Qatar 🇶🇦
+
+| Framework | Key | Description |
+|-----------|-----|-------------|
+| Qatar PDPL | `qatar-pdpl` | Personal Data Privacy Law 13/2016, National AI Policy |
+
+### Bahrain 🇧🇭
+
+| Framework | Key | Description |
+|-----------|-----|-------------|
+| Bahrain PDPL | `bahrain-pdpl` | Personal Data Protection Law 30/2018, CBB AI Notice, EDB AI Ethics Pledge |
+
 ---
 
 ## Framework Plugin Architecture
@@ -311,6 +335,10 @@ const regionFlags: Record<string, string> = {
   "India": "🇮🇳",
   "Japan": "🇯🇵",
   "Brazil": "🇧🇷",
+  "United Arab Emirates": "🇦🇪",
+  "Saudi Arabia": "🇸🇦",
+  "Qatar": "🇶🇦",
+  "Bahrain": "🇧🇭",
   "Other": "📋",
 };
 ```

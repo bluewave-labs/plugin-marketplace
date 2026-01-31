@@ -272,6 +272,10 @@ Framework plugins provide compliance frameworks grouped by geographic region.
 | 🌐 **International** | ISO 27001, PCI-DSS, CIS Controls v8, AI Ethics, Data Governance |
 | 🇺🇸 **United States** | SOC 2 Type II, HIPAA, CCPA, NIST CSF |
 | 🇪🇺 **European Union** | GDPR, DORA |
+| 🇦🇪 **United Arab Emirates** | UAE PDPL (PDPL 45/2021, DIFC Regulation 10, AI Ethics Charter) |
+| 🇸🇦 **Saudi Arabia** | Saudi PDPL (PDPL, SDAIA Ethics Principles, Generative AI Guidelines) |
+| 🇶🇦 **Qatar** | Qatar PDPL (Law 13/2016, National AI Policy) |
+| 🇧🇭 **Bahrain** | Bahrain PDPL (PDPL 30/2018, CBB AI Notice, EDB AI Ethics Pledge) |
 
 See [Framework Plugins Guide](docs/FRAMEWORK_PLUGINS.md) for details on adding new frameworks.
 
