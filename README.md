@@ -6,7 +6,8 @@ This repository contains the plugin marketplace for VerifyWise, including plugin
 
 | Document | Description |
 |----------|-------------|
-| [Plugin Development Guide](docs/PLUGIN_DEVELOPMENT_GUIDE.md) | Complete guide to building plugins |
+| [Plugin Development Guide](docs/PLUGIN_DEVELOPMENT.md) | Complete guide to building plugins |
+| [Framework Plugins Guide](docs/FRAMEWORK_PLUGINS.md) | Compliance framework plugin guide |
 | [Plugin UI Guide](docs/PLUGIN_UI_GUIDE.md) | Building dynamic plugin UIs |
 | [Architecture Overview](docs/ARCHITECTURE.md) | System architecture and data flow |
 | [API Reference](docs/API_REFERENCE.md) | Plugin interface specifications |
@@ -253,13 +254,44 @@ PLUGIN_MARKETPLACE_URL=https://raw.githubusercontent.com/org/plugin-marketplace/
 
 ## Current Plugins
 
+### Integration Plugins
+
 | Plugin | Category | Description |
 |--------|----------|-------------|
-| **Custom Framework Import** | Compliance | Import and manage custom compliance frameworks |
 | **Slack** | Communication | Real-time notifications via Slack |
 | **MLflow** | ML Operations | ML model tracking and sync |
 | **Azure AI Foundry** | ML Operations | Azure ML model tracking and sync |
 | **Risk Import** | Data Management | Bulk import risks from Excel |
+
+### Framework Plugins
+
+Framework plugins provide compliance frameworks grouped by geographic region.
+
+| Region | Frameworks |
+|--------|------------|
+| 🌐 **International** | ISO 27001, PCI-DSS, CIS Controls v8, AI Ethics, Data Governance |
+| 🇺🇸 **United States** | SOC 2 Type II, HIPAA, CCPA, NIST CSF |
+| 🇪🇺 **European Union** | GDPR, DORA |
+
+See [Framework Plugins Guide](docs/FRAMEWORK_PLUGINS.md) for details on adding new frameworks.
+
+### Framework Plugin Structure
+
+```json
+{
+  "key": "gdpr",
+  "name": "GDPR Compliance",
+  "category": "compliance",
+  "region": "European Union",
+  "iconUrl": "plugins/gdpr/icon.svg",
+  ...
+}
+```
+
+Key fields for framework plugins:
+- `category`: Must be `"compliance"` or have compliance/framework tags
+- `region`: Geographic region (displayed with flag in UI)
+- `iconUrl`: Local SVG icon path
 
 ## Event-Based Plugin Communication
 
