@@ -24,19 +24,6 @@ import {
   FolderOpen,
 } from "lucide-react";
 
-// Global cache to prevent duplicate API calls across component instances
-const dashboardCache: {
-  [projectId: number]: {
-    frameworks: any[];
-    progressData: any[];
-    frameworkDetails: Map<number, any>;
-    timestamp: number;
-    loading: boolean;
-    loadingPromise?: Promise<void>;
-  };
-} = {};
-const CACHE_TTL = 30000; // 30 seconds
-
 interface CustomFramework {
   id: number;
   framework_id: number;
@@ -212,43 +199,6 @@ export const CustomFrameworkDashboard: React.FC<CustomFrameworkDashboardProps> =
       return;
     }
 
-    const projectId = project.id;
-    const now = Date.now();
-
-    // Check cache first
-    const cached = dashboardCache[projectId];
-    if (cached && (now - cached.timestamp < CACHE_TTL)) {
-      // Use cached data
-      setFrameworks(cached.frameworks);
-      setProgressData(cached.progressData);
-      setFrameworkDetails(cached.frameworkDetails);
-      setLoading(false);
-      return;
-    }
-
-    // If another instance is already loading, wait for it
-    if (cached?.loading && cached.loadingPromise) {
-      await cached.loadingPromise;
-      const updatedCache = dashboardCache[projectId];
-      if (updatedCache) {
-        setFrameworks(updatedCache.frameworks);
-        setProgressData(updatedCache.progressData);
-        setFrameworkDetails(updatedCache.frameworkDetails);
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Mark as loading
-    dashboardCache[projectId] = {
-      frameworks: [],
-      progressData: [],
-      frameworkDetails: new Map(),
-      timestamp: 0,
-      loading: true,
-    };
-
-    const loadingPromise = (async () => {
     try {
       setLoading(true);
 
@@ -398,31 +348,14 @@ export const CustomFrameworkDashboard: React.FC<CustomFrameworkDashboardProps> =
 
       const progress = await Promise.all(progressPromises);
       setProgressData(progress);
-
-      // Store in cache
-      dashboardCache[projectId] = {
-        frameworks: frameworksArray,
-        progressData: progress,
-        frameworkDetails: detailsMap,
-        timestamp: Date.now(),
-        loading: false,
-      };
     } catch (err) {
       console.error("[CustomFrameworkDashboard] Error loading data:", err);
       setFrameworks([]);
       setProgressData([]);
       setFrameworkDetails(new Map());
-      // Clear loading state in cache
-      if (dashboardCache[projectId]) {
-        dashboardCache[projectId].loading = false;
-      }
     } finally {
       setLoading(false);
     }
-    })();
-
-    dashboardCache[projectId].loadingPromise = loadingPromise;
-    await loadingPromise;
   }, [project?.id, pluginKey]);
 
   useEffect(() => {
@@ -433,10 +366,6 @@ export const CustomFrameworkDashboard: React.FC<CustomFrameworkDashboardProps> =
   useEffect(() => {
     const handleCustomFrameworkChange = (event: CustomEvent) => {
       if (event.detail?.projectId === project?.id) {
-        // Invalidate cache before reloading
-        if (project?.id && dashboardCache[project.id]) {
-          delete dashboardCache[project.id];
-        }
         loadData();
       }
     };
