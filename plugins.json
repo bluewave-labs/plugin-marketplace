@@ -342,10 +342,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "soc2"
             }
           },
@@ -455,10 +458,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "gdpr"
             }
           },
@@ -568,10 +574,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "hipaa"
             }
           },
@@ -681,10 +690,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "pci-dss"
             }
           },
@@ -794,10 +806,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "ccpa"
             }
           },
@@ -907,10 +922,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "dora"
             }
           },
@@ -1020,10 +1038,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "nist-csf"
             }
           },
@@ -1133,10 +1154,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "cis-controls"
             }
           },
@@ -1246,10 +1270,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "iso27001"
             }
           },
@@ -1359,10 +1386,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "ai-ethics"
             }
           },
@@ -1472,10 +1502,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "data-governance"
             }
           },
@@ -1587,10 +1620,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "uae-pdpl"
             }
           },
@@ -1702,10 +1738,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "saudi-pdpl"
             }
           },
@@ -1817,10 +1856,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "qatar-pdpl"
             }
           },
@@ -1932,10 +1974,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "bahrain-pdpl"
             }
           },
@@ -2047,10 +2092,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "quebec-law25"
             }
           },
@@ -2162,10 +2210,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "texas-ai-act"
             }
           },
@@ -2277,10 +2328,13 @@
         "globalName": "PluginCustomFrameworkImport",
         "slots": [
           {
-            "slotId": "page.custom-frameworks",
+            "slotId": "page.settings.tabs",
             "componentName": "CustomFrameworkConfig",
-            "renderType": "raw",
+            "renderType": "tab",
             "props": {
+              "label": "Custom Frameworks",
+              "icon": "FileJson",
+              "value": "custom-frameworks",
               "pluginKey": "colorado-ai-act"
             }
           },
