@@ -37,6 +37,7 @@ import {
   TableContainer,
   Paper,
   InputAdornment,
+  Chip,
 } from "@mui/material";
 import {
   X as CloseIcon,
@@ -134,6 +135,7 @@ interface EvidenceFile {
   size?: number;
   type?: string;
   uploadDate?: string;
+  uploader?: string;
 }
 
 interface LinkedRisk {
@@ -299,6 +301,9 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
           size: f.size,
           type: f.type || f.mimetype,
           uploadDate: f.upload_date || f.uploaded_time || f.uploadDate,
+          uploader: f.uploader_name
+            ? `${f.uploader_name}${f.uploader_surname ? ` ${f.uploader_surname}` : ""}`.trim()
+            : f.uploader || undefined,
         }));
 
       // Remove duplicates by id
@@ -1835,14 +1840,29 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
             fontWeight: 600,
             borderBottom: "1px solid #E5E7EB",
             pb: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
           }}
         >
-          <Typography sx={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>
-            Attach Existing Files
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: "#6B7280", mt: 0.5 }}>
-            Select files from your organization to attach as evidence
-          </Typography>
+          <Box>
+            <Typography sx={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>
+              Attach Existing Files as Evidence
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: "#6B7280", mt: 0.5 }}>
+              Select files from your organization to attach as evidence
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={() => setIsFilePickerOpen(false)}
+            size="small"
+            sx={{
+              color: "#6B7280",
+              "&:hover": { backgroundColor: "#F3F4F6" },
+            }}
+          >
+            <CloseIcon size={18} />
+          </IconButton>
         </DialogTitle>
         <DialogContent sx={{ p: 2.5 }}>
           <Stack spacing={2.5}>
@@ -1897,9 +1917,25 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
               ) : (
                 <Box />
               )}
-              <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
-                {filteredAvailableFiles.length} file{filteredAvailableFiles.length !== 1 ? "s" : ""}
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                {selectedFileIds.size > 0 && (
+                  <Chip
+                    label={`${selectedFileIds.size} selected`}
+                    size="small"
+                    sx={{
+                      backgroundColor: "#EEF4FF",
+                      color: "#3B5BDB",
+                      fontSize: 11,
+                      fontWeight: 500,
+                      height: 24,
+                      "& .MuiChip-label": { px: 1.5 },
+                    }}
+                  />
+                )}
+                <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
+                  {filteredAvailableFiles.length} file{filteredAvailableFiles.length !== 1 ? "s" : ""}
+                </Typography>
+              </Stack>
             </Stack>
 
             {/* File List */}
@@ -2006,8 +2042,16 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                                     : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
                               </Typography>
                             )}
-                            {file.size && file.uploadDate && (
-                              <Typography sx={{ fontSize: 11, color: "#D1D5DB" }}>•</Typography>
+                            {file.size && file.uploader && (
+                              <Typography sx={{ fontSize: 11, color: "#D1D5DB" }}>·</Typography>
+                            )}
+                            {file.uploader && (
+                              <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                                {file.uploader}
+                              </Typography>
+                            )}
+                            {(file.size || file.uploader) && file.uploadDate && (
+                              <Typography sx={{ fontSize: 11, color: "#D1D5DB" }}>·</Typography>
                             )}
                             {file.uploadDate && (
                               <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
@@ -2048,28 +2092,25 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
           >
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleFilePickerConfirm}
-            disabled={selectedFileIds.size === 0}
-            sx={{
-              minWidth: "80px",
-              height: "34px",
-              backgroundColor: "#13715B",
-              textTransform: "none",
-              fontSize: 13,
-              borderRadius: "6px",
-              "&:hover:not(.Mui-disabled)": {
-                backgroundColor: "#0F5A47",
-              },
-              "&.Mui-disabled": {
-                backgroundColor: "#E5E7EB",
-                color: "#9CA3AF",
-              },
-            }}
-          >
-            Attach{selectedFileIds.size > 0 ? ` (${selectedFileIds.size})` : ""}
-          </Button>
+          {selectedFileIds.size > 0 && (
+            <Button
+              variant="contained"
+              onClick={handleFilePickerConfirm}
+              sx={{
+                minWidth: "80px",
+                height: "34px",
+                backgroundColor: "#13715B",
+                textTransform: "none",
+                fontSize: 13,
+                borderRadius: "6px",
+                "&:hover": {
+                  backgroundColor: "#0F5A47",
+                },
+              }}
+            >
+              Attach ({selectedFileIds.size})
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Drawer>
