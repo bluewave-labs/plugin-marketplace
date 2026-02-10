@@ -500,21 +500,9 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         payload.risks_to_remove = risksToRemove;
       }
 
-      // 5. Delete files from file manager
-      for (const fileId of deletedFileIds) {
-        try {
-          const token = getAuthToken();
-          const headers: Record<string, string> = {};
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-
-          await fetch(`/api/file-manager/${fileId}`, {
-            method: "DELETE",
-            headers,
-          });
-        } catch (deleteErr) {
-          console.error("[ControlItemDrawer] Error deleting file:", deleteErr);
-        }
-      }
+      // 5. Note: We only unlink files from evidence_links, we don't delete them from file manager
+      // The files are just removed from the evidence_links array above (filter by deletedFileIds)
+      // This allows the same file to be used as evidence in multiple places
 
       // 6. Save to API
       const response = await api.patch(
@@ -1827,16 +1815,16 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         </DialogActions>
       </Dialog>
 
-      {/* File Picker Modal */}
+      {/* File Picker Modal - Styled to match system framework FilePickerModal */}
       <Dialog
         open={isFilePickerOpen}
         onClose={() => setIsFilePickerOpen(false)}
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: "8px",
-            maxHeight: "80vh",
+            borderRadius: "12px",
+            maxWidth: "720px",
           },
         }}
       >
@@ -1848,136 +1836,204 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
             pb: 2,
           }}
         >
-          Attach Existing Files
+          <Typography sx={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>
+            Attach Existing Files
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "#6B7280", mt: 0.5 }}>
+            Select files from your organization to attach as evidence
+          </Typography>
         </DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
-          <Box sx={{ p: 2 }}>
+        <DialogContent sx={{ p: 2.5 }}>
+          <Stack spacing={2.5}>
+            {/* Search field */}
             <TextField
               placeholder="Search files..."
               value={filePickerSearchQuery}
               onChange={(e) => setFilePickerSearchQuery(e.target.value)}
               size="small"
               fullWidth
-              sx={{ mb: 2 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon size={16} color="#9CA3AF" />
+                    <SearchIcon size={16} color="#98A2B3" />
                   </InputAdornment>
                 ),
               }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "#F9FAFB",
+                  borderRadius: "8px",
+                  fontSize: 13,
+                  "& fieldset": { borderColor: "#E5E7EB" },
+                  "&:hover fieldset": { borderColor: "#D1D5DB" },
+                  "&.Mui-focused fieldset": { borderColor: "#4C7BF4", borderWidth: 1 },
+                },
+                "& .MuiInputBase-input::placeholder": { color: "#9CA3AF", opacity: 1 },
+              }}
             />
 
-            {filePickerLoading ? (
-              <Box sx={{ textAlign: "center", py: 4 }}>
-                <CircularProgress size={24} sx={{ color: colors.primary }} />
-                <Typography sx={{ mt: 1, color: "#6B7280" }}>Loading files...</Typography>
-              </Box>
-            ) : filteredAvailableFiles.length === 0 ? (
-              <Box
-                sx={{
-                  textAlign: "center",
-                  py: 4,
-                  color: "#6B7280",
-                }}
-              >
-                <Typography>No files available to attach</Typography>
-                <Typography variant="caption" color="#9CA3AF">
-                  {availableFiles.length > 0
-                    ? "All files are already attached or filtered out"
-                    : "Upload files to File Manager first"}
+            {/* Header row with select all and count */}
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              {filteredAvailableFiles.length > 0 ? (
+                <Typography
+                  onClick={() => {
+                    if (selectedFileIds.size === filteredAvailableFiles.length) {
+                      setSelectedFileIds(new Set());
+                    } else {
+                      setSelectedFileIds(new Set(filteredAvailableFiles.map((f) => f.id)));
+                    }
+                  }}
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "#4C7BF4",
+                    cursor: "pointer",
+                    "&:hover": { color: "#3D62C3" },
+                  }}
+                >
+                  {selectedFileIds.size === filteredAvailableFiles.length ? "Deselect all" : "Select all"}
                 </Typography>
-              </Box>
-            ) : (
-              <TableContainer
-                component={Paper}
-                elevation={0}
-                sx={{
-                  border: "1px solid #E5E7EB",
-                  maxHeight: "400px",
-                  overflow: "auto",
-                }}
-              >
-                <Table stickyHeader size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell padding="checkbox" sx={{ backgroundColor: "#F9FAFB" }}>
-                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Select</Typography>
-                      </TableCell>
-                      <TableCell sx={{ backgroundColor: "#F9FAFB" }}>
-                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>File Name</Typography>
-                      </TableCell>
-                      <TableCell sx={{ backgroundColor: "#F9FAFB" }}>
-                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Size</Typography>
-                      </TableCell>
-                      <TableCell sx={{ backgroundColor: "#F9FAFB" }}>
-                        <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Type</Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredAvailableFiles.map((file) => {
-                      const isSelected = selectedFileIds.has(file.id);
+              ) : (
+                <Box />
+              )}
+              <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
+                {filteredAvailableFiles.length} file{filteredAvailableFiles.length !== 1 ? "s" : ""}
+              </Typography>
+            </Stack>
 
-                      return (
-                        <TableRow
-                          key={file.id}
-                          hover
-                          onClick={() => handleFilePickerToggle(file.id)}
+            {/* File List */}
+            <Box
+              sx={{
+                maxHeight: "320px",
+                overflowY: "auto",
+                border: "1px solid #E5E7EB",
+                borderRadius: "8px",
+                backgroundColor: "#FFFFFF",
+              }}
+            >
+              {filePickerLoading ? (
+                <Box display="flex" justifyContent="center" alignItems="center" py={5}>
+                  <CircularProgress size={24} sx={{ color: "#4C7BF4" }} />
+                </Box>
+              ) : filteredAvailableFiles.length === 0 ? (
+                <Box sx={{ textAlign: "center", py: 4, px: 3 }}>
+                  <Typography sx={{ fontSize: 13, color: "#374151", mb: 0.5 }}>
+                    {filePickerSearchQuery ? "No files match your search" : "No files available"}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: "#9CA3AF" }}>
+                    {!filePickerSearchQuery && "Upload files to File Manager first"}
+                  </Typography>
+                </Box>
+              ) : (
+                <Stack divider={<Box sx={{ borderBottom: "1px solid #F3F4F6" }} />}>
+                  {filteredAvailableFiles.map((file) => {
+                    const isSelected = selectedFileIds.has(file.id);
+                    const ext = file.fileName?.split(".").pop()?.toLowerCase() || "";
+
+                    // File type icon colors
+                    let iconColor = "#757575";
+                    if (["pdf"].includes(ext)) iconColor = "#E53935";
+                    else if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(ext)) iconColor = "#1E88E5";
+                    else if (["doc", "docx", "txt", "rtf"].includes(ext)) iconColor = "#00ACC1";
+                    else if (["xls", "xlsx", "csv"].includes(ext)) iconColor = "#43A047";
+
+                    return (
+                      <Box
+                        key={file.id}
+                        onClick={() => handleFilePickerToggle(file.id)}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1.5,
+                          px: 2,
+                          py: 1.5,
+                          cursor: "pointer",
+                          backgroundColor: isSelected ? "#F0F7FF" : "transparent",
+                          "&:hover": {
+                            backgroundColor: isSelected ? "#E3EFFD" : "#F9FAFB",
+                          },
+                          transition: "background-color 0.12s ease",
+                        }}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          size="small"
                           sx={{
-                            cursor: "pointer",
-                            backgroundColor: isSelected ? "#F0F9FF" : "inherit",
+                            p: 0.5,
+                            color: "#D1D5DB",
+                            "&.Mui-checked": { color: "#4C7BF4" },
+                          }}
+                        />
+
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "6px",
+                            backgroundColor: "#F3F4F6",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
                           }}
                         >
-                          <TableCell padding="checkbox">
-                            <Checkbox
-                              checked={isSelected}
-                              onChange={() => handleFilePickerToggle(file.id)}
-                              size="small"
-                              sx={{
-                                color: "#D1D5DB",
-                                "&.Mui-checked": {
-                                  color: "#0369A1",
-                                },
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <FileIcon size={16} color="#475467" />
-                              <Typography sx={{ fontSize: 13, color: "#1F2937" }}>
-                                {file.fileName}
+                          <FileIcon size={20} color={iconColor} />
+                        </Box>
+
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: "#111827",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              lineHeight: 1.4,
+                            }}
+                            title={file.fileName}
+                          >
+                            {file.fileName}
+                          </Typography>
+                          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+                            {file.size && (
+                              <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                                {file.size < 1024
+                                  ? `${file.size} B`
+                                  : file.size < 1024 * 1024
+                                    ? `${(file.size / 1024).toFixed(1)} KB`
+                                    : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
                               </Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
-                              {file.size ? `${(file.size / 1024).toFixed(1)} KB` : "-"}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography sx={{ fontSize: 12, color: "#6B7280" }}>
-                              {file.type || "-"}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Box>
+                            )}
+                            {file.size && file.uploadDate && (
+                              <Typography sx={{ fontSize: 11, color: "#D1D5DB" }}>•</Typography>
+                            )}
+                            {file.uploadDate && (
+                              <Typography sx={{ fontSize: 11, color: "#6B7280" }}>
+                                {new Date(file.uploadDate).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </Typography>
+                            )}
+                          </Stack>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
+            </Box>
+          </Stack>
         </DialogContent>
-        <DialogActions sx={{ borderTop: "1px solid #E5E7EB", p: 2 }}>
-          <Typography sx={{ fontSize: 12, color: "#6B7280", mr: "auto" }}>
-            {selectedFileIds.size} file(s) selected
-          </Typography>
+        <DialogActions sx={{ borderTop: "1px solid #E5E7EB", p: 2, justifyContent: "flex-end" }}>
           <Button
             onClick={() => setIsFilePickerOpen(false)}
             sx={{
               color: "#344054",
               textTransform: "none",
+              fontSize: 13,
             }}
           >
             Cancel
@@ -1987,17 +2043,19 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
             onClick={handleFilePickerConfirm}
             disabled={selectedFileIds.size === 0}
             sx={{
-              backgroundColor: "#0369A1",
+              backgroundColor: "#13715B",
               textTransform: "none",
+              fontSize: 13,
               "&:hover": {
-                backgroundColor: "#075985",
+                backgroundColor: "#0e5c47",
               },
               "&:disabled": {
                 backgroundColor: "#E5E7EB",
+                color: "#9CA3AF",
               },
             }}
           >
-            Attach Selected
+            Attach{selectedFileIds.size > 0 ? ` (${selectedFileIds.size})` : ""}
           </Button>
         </DialogActions>
       </Dialog>
