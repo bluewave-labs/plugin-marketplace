@@ -1836,10 +1836,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
       >
         <DialogTitle
           sx={{
-            background: "linear-gradient(180deg, #F8FAFB 0%, #F3F5F8 100%)",
-            borderBottom: "1px solid #E0E4E9",
-            padding: "16px 24px",
-            paddingBottom: "36px",
+            padding: "20px 24px 16px 24px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
@@ -1885,19 +1882,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
             <CloseIcon size={20} />
           </Box>
         </DialogTitle>
-        <DialogContent
-          sx={{
-            padding: "20px",
-            margin: "0 24px",
-            marginTop: "-20px",
-            marginBottom: "-20px",
-            border: "1px solid #E0E4E9",
-            borderRadius: "16px",
-            backgroundColor: "#FFFFFF",
-            zIndex: 1,
-            position: "relative",
-          }}
-        >
+        <DialogContent sx={{ padding: "0 24px 20px 24px" }}>
           <Stack spacing={2.5}>
             {/* Search field */}
             <TextField
@@ -2107,10 +2092,8 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         </DialogContent>
         <DialogActions
           sx={{
-            background: "linear-gradient(180deg, #F3F5F8 0%, #F8FAFB 100%)",
-            borderTop: "1px solid #E0E4E9",
-            padding: "12px 24px",
-            paddingTop: "32px",
+            borderTop: "1px solid #E5E7EB",
+            padding: "16px 24px",
             justifyContent: "flex-end",
             gap: 1,
           }}
