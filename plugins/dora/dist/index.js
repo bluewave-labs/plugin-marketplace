@@ -1175,6 +1175,10 @@ function createFrameworkPlugin(config) {
       const frameworkIds = frameworks.map((f) => f.id);
       if (frameworkIds.length > 0) {
         await sequelize.query(
+          `DELETE FROM "${tenantId}".file_entity_links WHERE framework_type = :pluginKey`,
+          { replacements: { pluginKey } }
+        );
+        await sequelize.query(
           `DELETE FROM "${tenantId}".custom_framework_projects WHERE framework_id IN (:ids)`,
           { replacements: { ids: frameworkIds } }
         );

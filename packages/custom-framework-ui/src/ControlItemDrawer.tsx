@@ -113,9 +113,22 @@ interface Level2Item {
   implementation_details?: string;
   auditor_feedback?: string;
   evidence_files?: EvidenceFile[];
-  evidence_links?: EvidenceFile[];  // Backend returns this field name
+  evidence_links?: EvidenceFile[];  // Legacy JSON storage (deprecated)
+  linked_files?: LinkedFile[];  // Files from file_entity_links table (proper approach)
   linked_risks?: LinkedRisk[];
   items?: Level3Item[];
+}
+
+// File data from file_entity_links table
+interface LinkedFile {
+  id: number;
+  filename: string;
+  size?: number;
+  mimetype?: string;
+  upload_date?: string;
+  uploader_name?: string;
+  uploader_surname?: string;
+  link_type?: string;
 }
 
 interface Level3Item {
@@ -299,8 +312,21 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         implementation_details: item.implementation_details || "",
         auditor_feedback: item.auditor_feedback || "",
       });
-      // Backend returns evidence_links, map to evidenceFiles state
-      setEvidenceFiles(item.evidence_links || item.evidence_files || []);
+      // Map linked_files from file_entity_links table to EvidenceFile format
+      // Falls back to legacy evidence_links/evidence_files for backwards compatibility
+      const files: EvidenceFile[] = item.linked_files
+        ? item.linked_files.map((f) => ({
+            id: f.id,
+            fileName: f.filename,
+            size: f.size,
+            type: f.mimetype,
+            uploadDate: f.upload_date,
+            uploader: f.uploader_name
+              ? `${f.uploader_name}${f.uploader_surname ? ` ${f.uploader_surname}` : ""}`.trim()
+              : undefined,
+          }))
+        : (item.evidence_links || item.evidence_files || []);
+      setEvidenceFiles(files);
       setLinkedRisks(item.linked_risks || []);
       setUploadFiles([]);
       setDeletedFileIds([]);
@@ -371,44 +397,45 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         }
       }
 
-      // 2. Build updated evidence_links
-      // Start with existing files (minus deleted ones)
-      const existingLinks = evidenceFiles
-        .filter(f => !deletedFileIds.includes(f.id))
-        .map(f => ({
-          id: f.id,
-          fileName: f.fileName,
-          size: f.size,
-          type: f.type,
-          uploadDate: f.uploadDate,
-        }));
+      // 2. Attach files using proper file_entity_links table (not JSON storage)
+      // Combine newly uploaded file IDs and pending attach file IDs from File Manager
+      const allFileIdsToAttach = [
+        ...uploadedFileIds,
+        ...pendingAttachFiles.map((f) => f.id),
+      ];
 
-      // Add newly uploaded files
-      const newLinks = uploadedFileIds.map((id, idx) => ({
-        id,
-        fileName: uploadFiles[idx]?.name || `file_${id}`,
-        size: uploadFiles[idx]?.size,
-        type: uploadFiles[idx]?.type,
-        uploadDate: new Date().toISOString(),
-      }));
+      if (allFileIdsToAttach.length > 0) {
+        try {
+          await api.post(`/plugins/${pluginKey}/level2/${item.impl_id}/files`, {
+            file_ids: allFileIdsToAttach,
+            link_type: "evidence",
+          });
+        } catch (attachErr) {
+          console.error("[ControlItemDrawer] Error attaching files:", attachErr);
+        }
+      }
 
-      // Add pending attach files (existing files from File Manager)
-      const attachedLinks = pendingAttachFiles.map((f) => ({
-        id: f.id,
-        fileName: f.fileName,
-        size: f.size,
-        type: f.type,
-        uploadDate: f.uploadDate,
-      }));
+      // 3. Detach deleted files using proper endpoint
+      for (const fileId of deletedFileIds) {
+        try {
+          const token = getAuthToken();
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const evidence_links = [...existingLinks, ...newLinks, ...attachedLinks];
+          await fetch(`/api/plugins/${pluginKey}/level2/${item.impl_id}/files/${fileId}`, {
+            method: "DELETE",
+            headers,
+          });
+        } catch (detachErr) {
+          console.error("[ControlItemDrawer] Error detaching file:", detachErr);
+        }
+      }
 
-      // 3. Build payload
+      // 4. Build payload (without evidence_links - files are handled via file_entity_links table)
       const payload: any = {
         status: formData.status,
         implementation_details: formData.implementation_details,
         auditor_feedback: formData.auditor_feedback,
-        evidence_links,
       };
 
       if (formData.owner) {
@@ -435,17 +462,13 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         payload.due_date = null;
       }
 
-      // 4. Add risk linking
+      // 5. Add risk linking
       if (risksToAdd.length > 0) {
         payload.risks_to_add = risksToAdd;
       }
       if (risksToRemove.length > 0) {
         payload.risks_to_remove = risksToRemove;
       }
-
-      // 5. Note: We only unlink files from evidence_links, we don't delete them from file manager
-      // The files are just removed from the evidence_links array above (filter by deletedFileIds)
-      // This allows the same file to be used as evidence in multiple places
 
       // 6. Save to API
       const response = await api.patch(

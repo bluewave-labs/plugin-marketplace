@@ -1502,6 +1502,13 @@ export function createFrameworkPlugin(config: FrameworkPluginConfig) {
       const frameworkIds = (frameworks as any[]).map((f) => f.id);
 
       if (frameworkIds.length > 0) {
+        // Clean up file_entity_links for this plugin's framework
+        // This removes all file links associated with this plugin
+        await sequelize.query(
+          `DELETE FROM "${tenantId}".file_entity_links WHERE framework_type = :pluginKey`,
+          { replacements: { pluginKey } }
+        );
+
         // Delete project associations and implementations (cascade will handle related records)
         await sequelize.query(
           `DELETE FROM "${tenantId}".custom_framework_projects WHERE framework_id IN (:ids)`,
