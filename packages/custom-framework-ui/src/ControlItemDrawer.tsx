@@ -51,6 +51,7 @@ import {
   AlertTriangle,
   Search as SearchIcon,
 } from "lucide-react";
+import FilePickerModal from "./FilePickerModal";
 import {
   colors,
   textColors,
@@ -112,9 +113,22 @@ interface Level2Item {
   implementation_details?: string;
   auditor_feedback?: string;
   evidence_files?: EvidenceFile[];
-  evidence_links?: EvidenceFile[];  // Backend returns this field name
+  evidence_links?: EvidenceFile[];  // Legacy JSON storage (deprecated)
+  linked_files?: LinkedFile[];  // Files from file_entity_links table (proper approach)
   linked_risks?: LinkedRisk[];
   items?: Level3Item[];
+}
+
+// File data from file_entity_links table
+interface LinkedFile {
+  id: number;
+  filename: string;
+  size?: number;
+  mimetype?: string;
+  upload_date?: string;
+  uploader_name?: string;
+  uploader_surname?: string;
+  link_type?: string;
 }
 
 interface Level3Item {
@@ -134,6 +148,7 @@ interface EvidenceFile {
   size?: number;
   type?: string;
   uploadDate?: string;
+  uploader?: string;
 }
 
 interface LinkedRisk {
@@ -179,6 +194,10 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [deletedFileIds, setDeletedFileIds] = useState<number[]>([]);
+  const [pendingAttachFiles, setPendingAttachFiles] = useState<EvidenceFile[]>([]);
+
+  // File picker modal state
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
 
   // Linked risks state
   const [linkedRisks, setLinkedRisks] = useState<LinkedRisk[]>([]);
@@ -250,6 +269,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
     }
   }, []);
 
+
   // Load all project risks for linking
   const loadProjectRisks = useCallback(async () => {
     try {
@@ -292,11 +312,25 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         implementation_details: item.implementation_details || "",
         auditor_feedback: item.auditor_feedback || "",
       });
-      // Backend returns evidence_links, map to evidenceFiles state
-      setEvidenceFiles(item.evidence_links || item.evidence_files || []);
+      // Map linked_files from file_entity_links table to EvidenceFile format
+      // Falls back to legacy evidence_links/evidence_files for backwards compatibility
+      const files: EvidenceFile[] = item.linked_files
+        ? item.linked_files.map((f) => ({
+            id: f.id,
+            fileName: f.filename,
+            size: f.size,
+            type: f.mimetype,
+            uploadDate: f.upload_date,
+            uploader: f.uploader_name
+              ? `${f.uploader_name}${f.uploader_surname ? ` ${f.uploader_surname}` : ""}`.trim()
+              : undefined,
+          }))
+        : (item.evidence_links || item.evidence_files || []);
+      setEvidenceFiles(files);
       setLinkedRisks(item.linked_risks || []);
       setUploadFiles([]);
       setDeletedFileIds([]);
+      setPendingAttachFiles([]);
       setRisksToAdd([]);
       setRisksToRemove([]);
       setRiskSearchQuery("");
@@ -363,35 +397,45 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         }
       }
 
-      // 2. Build updated evidence_links
-      // Start with existing files (minus deleted ones)
-      const existingLinks = evidenceFiles
-        .filter(f => !deletedFileIds.includes(f.id))
-        .map(f => ({
-          id: f.id,
-          fileName: f.fileName,
-          size: f.size,
-          type: f.type,
-          uploadDate: f.uploadDate,
-        }));
+      // 2. Attach files using proper file_entity_links table (not JSON storage)
+      // Combine newly uploaded file IDs and pending attach file IDs from File Manager
+      const allFileIdsToAttach = [
+        ...uploadedFileIds,
+        ...pendingAttachFiles.map((f) => f.id),
+      ];
 
-      // Add newly uploaded files
-      const newLinks = uploadedFileIds.map((id, idx) => ({
-        id,
-        fileName: uploadFiles[idx]?.name || `file_${id}`,
-        size: uploadFiles[idx]?.size,
-        type: uploadFiles[idx]?.type,
-        uploadDate: new Date().toISOString(),
-      }));
+      if (allFileIdsToAttach.length > 0) {
+        try {
+          await api.post(`/plugins/${pluginKey}/level2/${item.impl_id}/files`, {
+            file_ids: allFileIdsToAttach,
+            link_type: "evidence",
+          });
+        } catch (attachErr) {
+          console.error("[ControlItemDrawer] Error attaching files:", attachErr);
+        }
+      }
 
-      const evidence_links = [...existingLinks, ...newLinks];
+      // 3. Detach deleted files using proper endpoint
+      for (const fileId of deletedFileIds) {
+        try {
+          const token = getAuthToken();
+          const headers: Record<string, string> = {};
+          if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      // 3. Build payload
+          await fetch(`/api/plugins/${pluginKey}/level2/${item.impl_id}/files/${fileId}`, {
+            method: "DELETE",
+            headers,
+          });
+        } catch (detachErr) {
+          console.error("[ControlItemDrawer] Error detaching file:", detachErr);
+        }
+      }
+
+      // 4. Build payload (without evidence_links - files are handled via file_entity_links table)
       const payload: any = {
         status: formData.status,
         implementation_details: formData.implementation_details,
         auditor_feedback: formData.auditor_feedback,
-        evidence_links,
       };
 
       if (formData.owner) {
@@ -418,28 +462,12 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
         payload.due_date = null;
       }
 
-      // 4. Add risk linking
+      // 5. Add risk linking
       if (risksToAdd.length > 0) {
         payload.risks_to_add = risksToAdd;
       }
       if (risksToRemove.length > 0) {
         payload.risks_to_remove = risksToRemove;
-      }
-
-      // 5. Delete files from file manager
-      for (const fileId of deletedFileIds) {
-        try {
-          const token = getAuthToken();
-          const headers: Record<string, string> = {};
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-
-          await fetch(`/api/file-manager/${fileId}`, {
-            method: "DELETE",
-            headers,
-          });
-        } catch (deleteErr) {
-          console.error("[ControlItemDrawer] Error deleting file:", deleteErr);
-        }
       }
 
       // 6. Save to API
@@ -476,6 +504,19 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
 
   const handleRemoveUploadFile = (index: number) => {
     setUploadFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemovePendingAttachFile = (fileId: number) => {
+    setPendingAttachFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  // File picker handlers
+  const handleOpenFilePicker = () => {
+    setIsFilePickerOpen(true);
+  };
+
+  const handleAttachExistingFiles = (selectedFiles: EvidenceFile[]) => {
+    setPendingAttachFiles((prev) => [...prev, ...selectedFiles]);
   };
 
   const getStatusColor = (status: string) => {
@@ -982,25 +1023,47 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                     }}
                   />
                   <Stack spacing={2}>
-                    <Button
-                      variant="contained"
-                      onClick={() => document.getElementById("evidence-file-input")?.click()}
-                      sx={{
-                        borderRadius: 2,
-                        minWidth: 155,
-                        height: 25,
-                        fontSize: 11,
-                        border: "1px solid #D0D5DD",
-                        backgroundColor: "white",
-                        color: "#344054",
-                        "&:hover": {
-                          backgroundColor: "#F9FAFB",
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="contained"
+                        onClick={() => document.getElementById("evidence-file-input")?.click()}
+                        sx={{
+                          borderRadius: 2,
+                          minWidth: 155,
+                          height: 25,
+                          fontSize: 11,
                           border: "1px solid #D0D5DD",
-                        },
-                      }}
-                    >
-                      Add evidence files
-                    </Button>
+                          backgroundColor: "white",
+                          color: "#344054",
+                          "&:hover": {
+                            backgroundColor: "#F9FAFB",
+                            border: "1px solid #D0D5DD",
+                          },
+                        }}
+                      >
+                        Add evidence files
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={handleOpenFilePicker}
+                        sx={{
+                          borderRadius: 2,
+                          minWidth: 155,
+                          height: 25,
+                          fontSize: 11,
+                          border: "1px solid #13715B",
+                          backgroundColor: "#13715B",
+                          color: "white",
+                          textTransform: "none",
+                          "&:hover": {
+                            backgroundColor: "#0F5C49",
+                            border: "1px solid #0F5C49",
+                          },
+                        }}
+                      >
+                        Attach existing files
+                      </Button>
+                    </Stack>
 
                     <Stack direction="row" spacing={2}>
                       <Typography sx={{ fontSize: 11, color: "#344054" }}>
@@ -1009,6 +1072,11 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                       {uploadFiles.length > 0 && (
                         <Typography sx={{ fontSize: 11, color: "#13715B" }}>
                           {`+${uploadFiles.length} pending upload`}
+                        </Typography>
+                      )}
+                      {pendingAttachFiles.length > 0 && (
+                        <Typography sx={{ fontSize: 11, color: "#0369A1" }}>
+                          {`+${pendingAttachFiles.length} pending attach`}
                         </Typography>
                       )}
                       {deletedFileIds.length > 0 && (
@@ -1157,8 +1225,69 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                   </Stack>
                 )}
 
+                {/* Pending Attach Files (from File Manager) */}
+                {pendingAttachFiles.length > 0 && (
+                  <Stack spacing={1}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#0369A1" }}>
+                      Pending attach from File Manager
+                    </Typography>
+                    {pendingAttachFiles.map((file) => (
+                      <Box
+                        key={file.id}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 12px",
+                          border: "1px solid #BAE6FD",
+                          borderRadius: "4px",
+                          backgroundColor: "#F0F9FF",
+                        }}
+                      >
+                        <Box sx={{ display: "flex", gap: 1.5, flex: 1, minWidth: 0 }}>
+                          <FileIcon size={18} color="#0369A1" />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography
+                              sx={{
+                                fontSize: 13,
+                                fontWeight: 500,
+                                color: "#0C4A6E",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {file.fileName}
+                            </Typography>
+                            {file.size && (
+                              <Typography sx={{ fontSize: 11, color: "#0369A1" }}>
+                                {((file.size || 0) / 1024).toFixed(1)} KB
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                        <Tooltip title="Remove from queue">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemovePendingAttachFile(file.id)}
+                            sx={{
+                              color: "#0369A1",
+                              "&:hover": {
+                                color: "#D32F2F",
+                                backgroundColor: "rgba(211, 47, 47, 0.08)",
+                              },
+                            }}
+                          >
+                            <DeleteIcon size={16} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+
                 {/* Empty State */}
-                {evidenceFiles.length === 0 && uploadFiles.length === 0 && (
+                {evidenceFiles.length === 0 && uploadFiles.length === 0 && pendingAttachFiles.length === 0 && (
                   <Box
                     sx={{
                       textAlign: "center",
@@ -1173,7 +1302,7 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
                       No evidence files uploaded yet
                     </Typography>
                     <Typography variant="caption" color="#9CA3AF">
-                      Click "Add evidence files" to upload documentation for this requirement
+                      Click "Add evidence files" to upload or "Attach existing files" to link from File Manager
                     </Typography>
                   </Box>
                 )}
@@ -1619,6 +1748,16 @@ export const ControlItemDrawer: React.FC<ControlItemDrawerProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* File Picker Modal */}
+      <FilePickerModal
+        open={isFilePickerOpen}
+        onClose={() => setIsFilePickerOpen(false)}
+        onSelect={handleAttachExistingFiles}
+        excludeFileIds={[...evidenceFiles.map((f) => f.id), ...pendingAttachFiles.map((f) => f.id)]}
+        multiSelect={true}
+        title="Attach Existing Files as Evidence"
+      />
     </Drawer>
   );
 };
