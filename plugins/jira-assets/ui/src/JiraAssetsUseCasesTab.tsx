@@ -75,13 +75,62 @@ interface SyncStatus {
   sync_interval_hours?: number;
 }
 
+// apiServices type from VerifyWise
+interface ApiServices {
+  get: (endpoint: string, params?: any) => Promise<{ data: any; status: number }>;
+  post: (endpoint: string, data?: any, config?: any) => Promise<{ data: any; status: number }>;
+  patch: (endpoint: string, data?: any, config?: any) => Promise<{ data: any; status: number }>;
+  put: (endpoint: string, data?: any, config?: any) => Promise<{ data: any; status: number }>;
+  delete: (endpoint: string, config?: any) => Promise<{ data: any; status: number }>;
+}
+
 interface JiraAssetsUseCasesTabProps {
+  apiServices?: ApiServices;
   pluginApiCall?: (method: string, path: string, body?: any) => Promise<any>;
 }
 
 export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
-  pluginApiCall,
+  apiServices,
+  pluginApiCall: pluginApiCallProp,
 }) => {
+  // Create pluginApiCall helper using apiServices
+  const pluginApiCall = useCallback(async (method: string, path: string, body?: any) => {
+    if (pluginApiCallProp) {
+      return pluginApiCallProp(method, path, body);
+    }
+    if (!apiServices) {
+      throw new Error("No API service available");
+    }
+
+    const url = `/plugins/jira-assets${path.startsWith("/") ? path : `/${path}`}`;
+    let response;
+
+    switch (method.toUpperCase()) {
+      case "GET":
+        response = await apiServices.get(url);
+        break;
+      case "POST":
+        response = await apiServices.post(url, body);
+        break;
+      case "PUT":
+        response = await apiServices.put(url, body);
+        break;
+      case "PATCH":
+        response = await apiServices.patch(url, body);
+        break;
+      case "DELETE":
+        response = await apiServices.delete(url);
+        break;
+      default:
+        throw new Error(`Unsupported method: ${method}`);
+    }
+
+    return response.data?.data ?? response.data;
+  }, [apiServices, pluginApiCallProp]);
+
+  // Check if API is available
+  const hasApiAccess = !!(apiServices || pluginApiCallProp);
+
   const [useCases, setUseCases] = useState<UseCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -103,7 +152,7 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
 
   // Load use cases
   const loadUseCases = useCallback(async () => {
-    if (!pluginApiCall) return;
+    if (!hasApiAccess) return;
 
     setIsLoading(true);
     setError(null);
@@ -118,11 +167,11 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [pluginApiCall]);
+  }, [hasApiAccess, pluginApiCall]);
 
   // Load sync status
   const loadSyncStatus = useCallback(async () => {
-    if (!pluginApiCall) return;
+    if (!hasApiAccess) return;
 
     try {
       const response = await pluginApiCall("GET", "/sync/status");
@@ -130,7 +179,7 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
     } catch (err) {
       console.error("Failed to load sync status:", err);
     }
-  }, [pluginApiCall]);
+  }, [hasApiAccess, pluginApiCall]);
 
   // Initial load
   useEffect(() => {
@@ -140,7 +189,7 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
 
   // Manual sync
   const handleSync = async () => {
-    if (!pluginApiCall) return;
+    if (!hasApiAccess) return;
 
     setIsSyncing(true);
     setError(null);
@@ -162,7 +211,7 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
 
   // Open import modal
   const handleOpenImport = async () => {
-    if (!pluginApiCall) return;
+    if (!hasApiAccess) return;
 
     setImportModalOpen(true);
     setIsLoadingObjects(true);
@@ -255,7 +304,7 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
 
   // Toggle organizational status
   const handleToggleOrganizational = async (useCase: UseCase) => {
-    if (!pluginApiCall) return;
+    if (!hasApiAccess) return;
 
     try {
       await pluginApiCall("PATCH", `/use-cases/${useCase.id}`, {
@@ -269,7 +318,7 @@ export const JiraAssetsUseCasesTab: React.FC<JiraAssetsUseCasesTabProps> = ({
 
   // Delete use case
   const handleDelete = async (useCase: UseCase) => {
-    if (!pluginApiCall) return;
+    if (!hasApiAccess) return;
 
     if (!window.confirm(`Are you sure you want to delete "${useCase.name}"?`)) {
       return;

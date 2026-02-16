@@ -30,6 +30,15 @@ interface ObjectType {
   objectCount?: number;
 }
 
+// apiServices type from VerifyWise
+interface ApiServices {
+  get: (endpoint: string, params?: any) => Promise<{ data: any; status: number }>;
+  post: (endpoint: string, data?: any, config?: any) => Promise<{ data: any; status: number }>;
+  patch: (endpoint: string, data?: any, config?: any) => Promise<{ data: any; status: number }>;
+  put: (endpoint: string, data?: any, config?: any) => Promise<{ data: any; status: number }>;
+  delete: (endpoint: string, config?: any) => Promise<{ data: any; status: number }>;
+}
+
 interface JiraAssetsConfigurationProps {
   configData?: Record<string, any>;
   onConfigChange?: (key: string, value: any) => void;
@@ -37,6 +46,7 @@ interface JiraAssetsConfigurationProps {
   onTestConnection?: () => void;
   isSavingConfig?: boolean;
   isTestingConnection?: boolean;
+  apiServices?: ApiServices;
   pluginApiCall?: (method: string, path: string, body?: any) => Promise<any>;
 }
 
@@ -47,8 +57,47 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
   onTestConnection,
   isSavingConfig = false,
   isTestingConnection = false,
-  pluginApiCall,
+  apiServices,
+  pluginApiCall: pluginApiCallProp,
 }) => {
+  // Create pluginApiCall helper using apiServices
+  const pluginApiCall = useCallback(async (method: string, path: string, body?: any) => {
+    if (pluginApiCallProp) {
+      return pluginApiCallProp(method, path, body);
+    }
+    if (!apiServices) {
+      throw new Error("No API service available");
+    }
+
+    const url = `/plugins/jira-assets${path.startsWith("/") ? path : `/${path}`}`;
+    let response;
+
+    switch (method.toUpperCase()) {
+      case "GET":
+        response = await apiServices.get(url);
+        break;
+      case "POST":
+        response = await apiServices.post(url, body);
+        break;
+      case "PUT":
+        response = await apiServices.put(url, body);
+        break;
+      case "PATCH":
+        response = await apiServices.patch(url, body);
+        break;
+      case "DELETE":
+        response = await apiServices.delete(url);
+        break;
+      default:
+        throw new Error(`Unsupported method: ${method}`);
+    }
+
+    return response.data?.data ?? response.data;
+  }, [apiServices, pluginApiCallProp]);
+
+  // Check if API is available
+  const hasApiAccess = !!(apiServices || pluginApiCallProp);
+
   const [localConfig, setLocalConfig] = useState<Record<string, any>>({
     deployment_type: "cloud",
     sync_enabled: false,
@@ -77,7 +126,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
 
   // Load schemas when connection is configured
   const loadSchemas = useCallback(async () => {
-    if (!pluginApiCall || !localConfig.jira_base_url || !localConfig.workspace_id) return;
+    if (!hasApiAccess || !localConfig.jira_base_url || !localConfig.workspace_id) return;
 
     setIsLoadingSchemas(true);
     try {
@@ -90,11 +139,11 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
     } finally {
       setIsLoadingSchemas(false);
     }
-  }, [pluginApiCall, localConfig.jira_base_url, localConfig.workspace_id]);
+  }, [hasApiAccess, pluginApiCall, localConfig.jira_base_url, localConfig.workspace_id]);
 
   // Load object types when schema is selected
   const loadObjectTypes = useCallback(async (schemaId: string) => {
-    if (!pluginApiCall || !schemaId) return;
+    if (!hasApiAccess || !schemaId) return;
 
     setIsLoadingObjectTypes(true);
     try {
@@ -107,11 +156,11 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
     } finally {
       setIsLoadingObjectTypes(false);
     }
-  }, [pluginApiCall]);
+  }, [hasApiAccess, pluginApiCall]);
 
   // Test connection handler
   const handleTestConnection = async () => {
-    if (!pluginApiCall) {
+    if (!hasApiAccess) {
       if (onTestConnection) onTestConnection();
       return;
     }
