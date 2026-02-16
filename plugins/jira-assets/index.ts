@@ -80,6 +80,7 @@ interface JiraAssetsConfig {
   workspace_id?: string;
   email?: string;
   api_token?: string;
+  deployment_type?: "cloud" | "datacenter"; // Cloud vs Data Center/Server
   selected_schema_id?: string;
   selected_object_type_id?: string;
   sync_enabled?: boolean;
@@ -192,16 +193,22 @@ class JiraAssetsClient {
   private baseUrl: string;
   private workspaceId: string;
   private authHeader: string;
+  private deploymentType: "cloud" | "datacenter";
 
-  constructor(baseUrl: string, workspaceId: string, email: string, apiToken: string) {
+  constructor(baseUrl: string, workspaceId: string, email: string, apiToken: string, deploymentType: "cloud" | "datacenter" = "cloud") {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.workspaceId = workspaceId;
+    this.deploymentType = deploymentType;
     const credentials = Buffer.from(`${email}:${apiToken}`).toString("base64");
     this.authHeader = `Basic ${credentials}`;
   }
 
   private async request<T>(endpoint: string, method: string = "GET", body?: any): Promise<T> {
-    const url = `${this.baseUrl}/jsm/assets/workspace/${this.workspaceId}/v1/${endpoint}`;
+    // Cloud: /jsm/assets/workspace/{workspaceId}/v1/{endpoint}
+    // Data Center: /rest/insight/1.0/{endpoint}
+    const url = this.deploymentType === "cloud"
+      ? `${this.baseUrl}/jsm/assets/workspace/${this.workspaceId}/v1/${endpoint}`
+      : `${this.baseUrl}/rest/insight/1.0/${endpoint}`;
 
     const response = await fetch(url, {
       method,
@@ -287,6 +294,7 @@ export async function install(
         email VARCHAR(255) NOT NULL,
         api_token_encrypted TEXT NOT NULL,
         api_token_iv VARCHAR(50) NOT NULL,
+        deployment_type VARCHAR(20) DEFAULT 'cloud',
         selected_schema_id VARCHAR(100),
         selected_object_type_id VARCHAR(100),
         attribute_mappings JSONB NOT NULL DEFAULT '{}',
@@ -495,7 +503,8 @@ export async function testConnection(config: JiraAssetsConfig): Promise<TestConn
       config.jira_base_url,
       config.workspace_id,
       config.email,
-      config.api_token
+      config.api_token,
+      config.deployment_type || "cloud"
     );
 
     const result = await client.testConnection();
@@ -556,7 +565,8 @@ async function syncObjects(
       config.jira_base_url,
       config.workspace_id,
       config.email,
-      config.api_token
+      config.api_token,
+      config.deployment_type || "cloud"
     );
 
     // Fetch objects from JIRA
@@ -630,7 +640,8 @@ async function syncObjects(
     }
 
     // Mark deleted objects (those remaining in existingMap)
-    for (const [jiraObjectId] of existingMap) {
+    const remainingIds = Array.from(existingMap.keys());
+    for (const jiraObjectId of remainingIds) {
       await sequelize.query(
         `UPDATE "${tenantId}".jira_assets_use_cases
          SET sync_status = 'deleted_in_jira', is_active = false, updated_at = CURRENT_TIMESTAMP
@@ -796,7 +807,7 @@ async function handleGetConfig(ctx: PluginRouteContext): Promise<PluginRouteResp
 
   try {
     const configs: any[] = await sequelize.query(
-      `SELECT id, jira_base_url, workspace_id, email, selected_schema_id, selected_object_type_id,
+      `SELECT id, jira_base_url, workspace_id, email, deployment_type, selected_schema_id, selected_object_type_id,
               sync_enabled, sync_interval_hours, last_sync_at, last_sync_status, last_sync_message
        FROM "${tenantId}".jira_assets_config LIMIT 1`,
       { type: "SELECT" }
@@ -843,6 +854,7 @@ async function handleSaveConfig(ctx: PluginRouteContext): Promise<PluginRouteRes
       `UPDATE "${tenantId}".jira_assets_config
        SET jira_base_url = :jiraBaseUrl, workspace_id = :workspaceId, email = :email,
            api_token_encrypted = :apiTokenEncrypted, api_token_iv = :apiTokenIv,
+           deployment_type = :deploymentType,
            selected_schema_id = :selectedSchemaId, selected_object_type_id = :selectedObjectTypeId,
            sync_enabled = :syncEnabled, sync_interval_hours = :syncIntervalHours,
            updated_by = :updatedBy, updated_at = CURRENT_TIMESTAMP
@@ -854,6 +866,7 @@ async function handleSaveConfig(ctx: PluginRouteContext): Promise<PluginRouteRes
           email: body.email,
           apiTokenEncrypted: encryptedToken,
           apiTokenIv: iv,
+          deploymentType: body.deployment_type || "cloud",
           selectedSchemaId: body.selected_schema_id || null,
           selectedObjectTypeId: body.selected_object_type_id || null,
           syncEnabled: body.sync_enabled || false,
@@ -866,9 +879,9 @@ async function handleSaveConfig(ctx: PluginRouteContext): Promise<PluginRouteRes
   } else {
     await sequelize.query(
       `INSERT INTO "${tenantId}".jira_assets_config
-       (jira_base_url, workspace_id, email, api_token_encrypted, api_token_iv,
+       (jira_base_url, workspace_id, email, api_token_encrypted, api_token_iv, deployment_type,
         selected_schema_id, selected_object_type_id, sync_enabled, sync_interval_hours, created_by)
-       VALUES (:jiraBaseUrl, :workspaceId, :email, :apiTokenEncrypted, :apiTokenIv,
+       VALUES (:jiraBaseUrl, :workspaceId, :email, :apiTokenEncrypted, :apiTokenIv, :deploymentType,
                :selectedSchemaId, :selectedObjectTypeId, :syncEnabled, :syncIntervalHours, :createdBy)`,
       {
         replacements: {
@@ -877,6 +890,7 @@ async function handleSaveConfig(ctx: PluginRouteContext): Promise<PluginRouteRes
           email: body.email,
           apiTokenEncrypted: encryptedToken,
           apiTokenIv: iv,
+          deploymentType: body.deployment_type || "cloud",
           selectedSchemaId: body.selected_schema_id || null,
           selectedObjectTypeId: body.selected_object_type_id || null,
           syncEnabled: body.sync_enabled || false,
@@ -928,7 +942,8 @@ async function handleGetSchemas(ctx: PluginRouteContext): Promise<PluginRouteRes
       configuration.jira_base_url,
       configuration.workspace_id,
       configuration.email,
-      apiToken
+      apiToken,
+      configuration.deployment_type || "cloud"
     );
 
     const schemas = await client.getSchemas();
@@ -957,7 +972,8 @@ async function handleGetObjectTypes(ctx: PluginRouteContext): Promise<PluginRout
       configuration.jira_base_url,
       configuration.workspace_id,
       configuration.email,
-      apiToken
+      apiToken,
+      configuration.deployment_type || "cloud"
     );
 
     const objectTypes = await client.getObjectTypes(schemaId);
@@ -986,7 +1002,8 @@ async function handleGetAttributes(ctx: PluginRouteContext): Promise<PluginRoute
       configuration.jira_base_url,
       configuration.workspace_id,
       configuration.email,
-      apiToken
+      apiToken,
+      configuration.deployment_type || "cloud"
     );
 
     const attributes = await client.getAttributes(objectTypeId);
@@ -1015,7 +1032,8 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
       configuration.jira_base_url,
       configuration.workspace_id,
       configuration.email,
-      apiToken
+      apiToken,
+      configuration.deployment_type || "cloud"
     );
 
     const objects = await client.getObjects(objectTypeId);
@@ -1070,7 +1088,8 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
       configuration.jira_base_url,
       configuration.workspace_id,
       configuration.email,
-      apiToken
+      apiToken,
+      configuration.deployment_type || "cloud"
     );
 
     // Get attribute mappings

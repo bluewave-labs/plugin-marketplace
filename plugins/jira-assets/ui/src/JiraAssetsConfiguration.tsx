@@ -50,6 +50,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
   pluginApiCall,
 }) => {
   const [localConfig, setLocalConfig] = useState<Record<string, any>>({
+    deployment_type: "cloud",
     sync_enabled: false,
     sync_interval_hours: 24,
     ...configData,
@@ -124,6 +125,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
         workspace_id: localConfig.workspace_id,
         email: localConfig.email,
         api_token: localConfig.api_token,
+        deployment_type: localConfig.deployment_type || "cloud",
       });
 
       if (response?.success) {
@@ -187,11 +189,34 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
       <Stack spacing={2.5}>
         <Box>
           <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            Deployment Type *
+          </Typography>
+          <FormControl fullWidth size="small">
+            <Select
+              value={localConfig.deployment_type || "cloud"}
+              onChange={(e) => handleChange("deployment_type", e.target.value)}
+              sx={{ fontSize: "13px", backgroundColor: "white" }}
+            >
+              <MenuItem value="cloud" sx={{ fontSize: "13px" }}>
+                JIRA Cloud (Atlassian-hosted)
+              </MenuItem>
+              <MenuItem value="datacenter" sx={{ fontSize: "13px" }}>
+                JIRA Data Center / Server (Self-hosted)
+              </MenuItem>
+            </Select>
+          </FormControl>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+            Select Cloud for *.atlassian.net, or Data Center for self-hosted JIRA
+          </Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
             JIRA Base URL *
           </Typography>
           <TextField
             fullWidth
-            placeholder="https://your-company.atlassian.net"
+            placeholder={localConfig.deployment_type === "datacenter" ? "https://jira.your-company.com" : "https://your-company.atlassian.net"}
             value={localConfig.jira_base_url || ""}
             onChange={(e) => handleChange("jira_base_url", e.target.value)}
             size="small"
@@ -201,27 +226,29 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
 
         <Box>
           <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
-            Workspace ID *
+            {localConfig.deployment_type === "datacenter" ? "Insight Object Schema ID" : "Workspace ID"} *
           </Typography>
           <TextField
             fullWidth
-            placeholder="Enter your JSM Assets workspace ID"
+            placeholder={localConfig.deployment_type === "datacenter" ? "Enter object schema ID (e.g., 1)" : "Enter your JSM Assets workspace ID"}
             value={localConfig.workspace_id || ""}
             onChange={(e) => handleChange("workspace_id", e.target.value)}
             size="small"
-            helperText="Found in Assets settings or the URL when viewing Assets"
+            helperText={localConfig.deployment_type === "datacenter"
+              ? "For Data Center: Use object schema ID from Insight settings"
+              : "Found in Assets settings or the URL when viewing Assets"}
             sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
           />
         </Box>
 
         <Box>
           <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
-            Email *
+            {localConfig.deployment_type === "datacenter" ? "Username" : "Email"} *
           </Typography>
           <TextField
             fullWidth
-            type="email"
-            placeholder="your-email@company.com"
+            type={localConfig.deployment_type === "datacenter" ? "text" : "email"}
+            placeholder={localConfig.deployment_type === "datacenter" ? "your-username" : "your-email@company.com"}
             value={localConfig.email || ""}
             onChange={(e) => handleChange("email", e.target.value)}
             size="small"
@@ -231,16 +258,18 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
 
         <Box>
           <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
-            API Token *
+            {localConfig.deployment_type === "datacenter" ? "Password / Token" : "API Token"} *
           </Typography>
           <TextField
             fullWidth
             type="password"
-            placeholder="Enter your Atlassian API token"
+            placeholder={localConfig.deployment_type === "datacenter" ? "Enter your password or personal access token" : "Enter your Atlassian API token"}
             value={localConfig.api_token || ""}
             onChange={(e) => handleChange("api_token", e.target.value)}
             size="small"
-            helperText="Generate at id.atlassian.com/manage-profile/security/api-tokens"
+            helperText={localConfig.deployment_type === "datacenter"
+              ? "Use your JIRA password or personal access token"
+              : "Generate at id.atlassian.com/manage-profile/security/api-tokens"}
             sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
           />
         </Box>
