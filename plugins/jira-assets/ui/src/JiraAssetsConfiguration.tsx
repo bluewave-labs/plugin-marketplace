@@ -115,21 +115,27 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
 
   // Load config from plugin's own endpoint on mount (only once)
   useEffect(() => {
+    console.log("[JiraConfig] useEffect triggered - configLoaded:", configLoaded, "apiServices:", !!apiServices);
     if (configLoaded || !apiServices) return;
 
     const loadConfig = async () => {
+      console.log("[JiraConfig] Loading config from /plugins/jira-assets/config");
       try {
         const url = "/plugins/jira-assets/config";
         const response = await apiServices.get(url);
+        console.log("[JiraConfig] Raw response:", response);
         const data = response.data?.data ?? response.data;
+        console.log("[JiraConfig] Extracted data:", data);
         if (data) {
-          setLocalConfig((prev) => ({
-            ...prev,
-            ...data,
-          }));
+          console.log("[JiraConfig] Setting localConfig with:", data);
+          setLocalConfig((prev) => {
+            const newConfig = { ...prev, ...data };
+            console.log("[JiraConfig] New localConfig:", newConfig);
+            return newConfig;
+          });
         }
       } catch (error) {
-        console.error("Failed to load config:", error);
+        console.error("[JiraConfig] Failed to load config:", error);
       } finally {
         setConfigLoaded(true);
       }
