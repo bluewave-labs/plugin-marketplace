@@ -104,6 +104,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
     sync_interval_hours: 24,
     ...configData,
   });
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   const [schemas, setSchemas] = useState<Schema[]>([]);
   const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
@@ -112,9 +113,33 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [connectionMessage, setConnectionMessage] = useState("");
 
-  // Sync local config with parent
+  // Load config from plugin's own endpoint on mount
   useEffect(() => {
-    setLocalConfig((prev) => ({ ...prev, ...configData }));
+    const loadConfig = async () => {
+      if (!hasApiAccess) return;
+      setIsLoadingConfig(true);
+      try {
+        const response = await pluginApiCall("GET", "/config");
+        if (response) {
+          setLocalConfig((prev) => ({
+            ...prev,
+            ...response,
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load config:", error);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+    loadConfig();
+  }, [hasApiAccess, pluginApiCall]);
+
+  // Sync local config with parent (for changes from parent)
+  useEffect(() => {
+    if (Object.keys(configData).length > 0) {
+      setLocalConfig((prev) => ({ ...prev, ...configData }));
+    }
   }, [configData]);
 
   const handleChange = useCallback((key: string, value: any) => {
