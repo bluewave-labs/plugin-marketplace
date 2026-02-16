@@ -308,18 +308,28 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
 
         <Box>
           <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
-            {localConfig.deployment_type === "datacenter" ? "Password / Token" : "API Token"} *
+            {localConfig.deployment_type === "datacenter" ? "Password / Token" : "API Token"} {!localConfig.has_api_token && "*"}
           </Typography>
           <TextField
             fullWidth
             type="password"
-            placeholder={localConfig.deployment_type === "datacenter" ? "Enter your password or personal access token" : "Enter your Atlassian API token"}
+            placeholder={
+              localConfig.has_api_token && !localConfig.api_token
+                ? "••••••••••••••••  (saved - enter new value to change)"
+                : localConfig.deployment_type === "datacenter"
+                  ? "Enter your password or personal access token"
+                  : "Enter your Atlassian API token"
+            }
             value={localConfig.api_token || ""}
             onChange={(e) => handleChange("api_token", e.target.value)}
             size="small"
-            helperText={localConfig.deployment_type === "datacenter"
-              ? "Use your JIRA password or personal access token"
-              : "Generate at id.atlassian.com/manage-profile/security/api-tokens"}
+            helperText={
+              localConfig.has_api_token && !localConfig.api_token
+                ? "API token is saved. Leave empty to keep current token, or enter a new value to update."
+                : localConfig.deployment_type === "datacenter"
+                  ? "Use your JIRA password or personal access token"
+                  : "Generate at id.atlassian.com/manage-profile/security/api-tokens"
+            }
             sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
           />
         </Box>
@@ -348,7 +358,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
             !localConfig.jira_base_url ||
             !localConfig.workspace_id ||
             !localConfig.email ||
-            !localConfig.api_token
+            (!localConfig.api_token && !localConfig.has_api_token)
           }
           sx={{
             borderColor: "#13715B",
@@ -512,7 +522,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
           <Button
             variant="contained"
             onClick={onSaveConfiguration}
-            disabled={isSavingConfig || !localConfig.jira_base_url || !localConfig.workspace_id || !localConfig.email || !localConfig.api_token}
+            disabled={isSavingConfig || !localConfig.jira_base_url || !localConfig.workspace_id || !localConfig.email || (!localConfig.api_token && !localConfig.has_api_token)}
             sx={{
               backgroundColor: "#13715B",
               textTransform: "none",

@@ -519,9 +519,26 @@ export function validateConfig(config: JiraAssetsConfig): ValidationResult {
 
 // ========== INTEGRATION METHODS ==========
 
-export async function testConnection(config: JiraAssetsConfig): Promise<TestConnectionResult> {
+export async function testConnection(config: JiraAssetsConfig, context?: { sequelize?: any; tenantId?: string }): Promise<TestConnectionResult> {
   try {
-    if (!config.jira_base_url || !config.workspace_id || !config.email || !config.api_token) {
+    let apiToken = config.api_token;
+
+    // If no api_token provided but we have context, try to load from saved config
+    if (!apiToken && context?.sequelize && context?.tenantId) {
+      try {
+        const savedConfigs: any[] = await context.sequelize.query(
+          `SELECT api_token_encrypted FROM "${context.tenantId}".jira_assets_config LIMIT 1`,
+          { type: "SELECT" }
+        );
+        if (savedConfigs.length > 0 && savedConfigs[0].api_token_encrypted) {
+          apiToken = Buffer.from(savedConfigs[0].api_token_encrypted, "base64").toString("utf-8");
+        }
+      } catch {
+        // Table might not exist yet
+      }
+    }
+
+    if (!config.jira_base_url || !config.workspace_id || !config.email || !apiToken) {
       throw new Error("All connection parameters are required");
     }
 
@@ -529,7 +546,7 @@ export async function testConnection(config: JiraAssetsConfig): Promise<TestConn
       config.jira_base_url,
       config.workspace_id,
       config.email,
-      config.api_token,
+      apiToken,
       config.deployment_type || "cloud"
     );
 
@@ -858,52 +875,91 @@ async function handleGetConfig(ctx: PluginRouteContext): Promise<PluginRouteResp
 async function handleSaveConfig(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
   const { sequelize, tenantId, userId, body } = ctx;
 
-  const validation = validateConfig(body);
-  if (!validation.valid) {
-    return {
-      status: 400,
-      data: { success: false, errors: validation.errors },
-    };
-  }
-
-  // Simple encryption for API token (in production, use proper encryption)
-  const iv = Math.random().toString(36).substring(2, 15);
-  const encryptedToken = Buffer.from(body.api_token).toString("base64");
-
-  // Check if config exists
+  // Check if config already exists
   const existing: any[] = await sequelize.query(
-    `SELECT id FROM "${tenantId}".jira_assets_config LIMIT 1`,
+    `SELECT id, api_token_encrypted FROM "${tenantId}".jira_assets_config LIMIT 1`,
     { type: "SELECT" }
   );
 
-  if (existing.length > 0) {
-    await sequelize.query(
-      `UPDATE "${tenantId}".jira_assets_config
-       SET jira_base_url = :jiraBaseUrl, workspace_id = :workspaceId, email = :email,
-           api_token_encrypted = :apiTokenEncrypted, api_token_iv = :apiTokenIv,
-           deployment_type = :deploymentType,
-           selected_schema_id = :selectedSchemaId, selected_object_type_id = :selectedObjectTypeId,
-           sync_enabled = :syncEnabled, sync_interval_hours = :syncIntervalHours,
-           updated_by = :updatedBy, updated_at = CURRENT_TIMESTAMP
-       WHERE id = :id`,
-      {
-        replacements: {
-          jiraBaseUrl: body.jira_base_url,
-          workspaceId: body.workspace_id,
-          email: body.email,
-          apiTokenEncrypted: encryptedToken,
-          apiTokenIv: iv,
-          deploymentType: body.deployment_type || "cloud",
-          selectedSchemaId: body.selected_schema_id || null,
-          selectedObjectTypeId: body.selected_object_type_id || null,
-          syncEnabled: body.sync_enabled || false,
-          syncIntervalHours: body.sync_interval_hours || 24,
-          updatedBy: userId,
-          id: existing[0].id,
-        },
-      }
-    );
+  const isUpdate = existing.length > 0;
+  const hasExistingToken = isUpdate && existing[0].api_token_encrypted;
+
+  // Validate - api_token is only required for new configs or if no token exists
+  if (!body.jira_base_url) {
+    return { status: 400, data: { success: false, errors: ["JIRA Base URL is required"] } };
+  }
+  if (!body.workspace_id) {
+    return { status: 400, data: { success: false, errors: ["Workspace ID is required"] } };
+  }
+  if (!body.email) {
+    return { status: 400, data: { success: false, errors: ["Email is required"] } };
+  }
+  if (!body.api_token && !hasExistingToken) {
+    return { status: 400, data: { success: false, errors: ["API Token is required"] } };
+  }
+
+  if (isUpdate) {
+    // Update existing config
+    if (body.api_token) {
+      // New token provided - update it
+      const iv = Math.random().toString(36).substring(2, 15);
+      const encryptedToken = Buffer.from(body.api_token).toString("base64");
+      await sequelize.query(
+        `UPDATE "${tenantId}".jira_assets_config
+         SET jira_base_url = :jiraBaseUrl, workspace_id = :workspaceId, email = :email,
+             api_token_encrypted = :apiTokenEncrypted, api_token_iv = :apiTokenIv,
+             deployment_type = :deploymentType,
+             selected_schema_id = :selectedSchemaId, selected_object_type_id = :selectedObjectTypeId,
+             sync_enabled = :syncEnabled, sync_interval_hours = :syncIntervalHours,
+             updated_by = :updatedBy, updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id`,
+        {
+          replacements: {
+            jiraBaseUrl: body.jira_base_url,
+            workspaceId: body.workspace_id,
+            email: body.email,
+            apiTokenEncrypted: encryptedToken,
+            apiTokenIv: iv,
+            deploymentType: body.deployment_type || "cloud",
+            selectedSchemaId: body.selected_schema_id || null,
+            selectedObjectTypeId: body.selected_object_type_id || null,
+            syncEnabled: body.sync_enabled || false,
+            syncIntervalHours: body.sync_interval_hours || 24,
+            updatedBy: userId,
+            id: existing[0].id,
+          },
+        }
+      );
+    } else {
+      // No new token - keep existing token
+      await sequelize.query(
+        `UPDATE "${tenantId}".jira_assets_config
+         SET jira_base_url = :jiraBaseUrl, workspace_id = :workspaceId, email = :email,
+             deployment_type = :deploymentType,
+             selected_schema_id = :selectedSchemaId, selected_object_type_id = :selectedObjectTypeId,
+             sync_enabled = :syncEnabled, sync_interval_hours = :syncIntervalHours,
+             updated_by = :updatedBy, updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id`,
+        {
+          replacements: {
+            jiraBaseUrl: body.jira_base_url,
+            workspaceId: body.workspace_id,
+            email: body.email,
+            deploymentType: body.deployment_type || "cloud",
+            selectedSchemaId: body.selected_schema_id || null,
+            selectedObjectTypeId: body.selected_object_type_id || null,
+            syncEnabled: body.sync_enabled || false,
+            syncIntervalHours: body.sync_interval_hours || 24,
+            updatedBy: userId,
+            id: existing[0].id,
+          },
+        }
+      );
+    }
   } else {
+    // New config - api_token is required (already validated above)
+    const iv = Math.random().toString(36).substring(2, 15);
+    const encryptedToken = Buffer.from(body.api_token).toString("base64");
     await sequelize.query(
       `INSERT INTO "${tenantId}".jira_assets_config
        (jira_base_url, workspace_id, email, api_token_encrypted, api_token_iv, deployment_type,
