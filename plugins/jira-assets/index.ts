@@ -210,8 +210,6 @@ class JiraAssetsClient {
       ? `https://api.atlassian.com/jsm/assets/workspace/${this.workspaceId}/v1/${endpoint}`
       : `${this.baseUrl}/rest/insight/1.0/${endpoint}`;
 
-    console.log(`[JiraAssetsClient] ${method} ${url} (deploymentType: ${this.deploymentType})`);
-
     const response = await fetch(url, {
       method,
       headers: {
@@ -224,7 +222,6 @@ class JiraAssetsClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log(`[JiraAssetsClient] Error ${response.status} for ${url}`);
       throw new Error(`JIRA API error ${response.status}: ${errorText || "No details"}`);
     }
 
@@ -837,7 +834,8 @@ async function handleGetConfig(ctx: PluginRouteContext): Promise<PluginRouteResp
   try {
     const configs: any[] = await sequelize.query(
       `SELECT id, jira_base_url, workspace_id, email, deployment_type, selected_schema_id, selected_object_type_id,
-              sync_enabled, sync_interval_hours, last_sync_at, last_sync_status, last_sync_message
+              sync_enabled, sync_interval_hours, last_sync_at, last_sync_status, last_sync_message,
+              CASE WHEN api_token_encrypted IS NOT NULL AND api_token_encrypted != '' THEN true ELSE false END as has_api_token
        FROM "${tenantId}".jira_assets_config LIMIT 1`,
       { type: "SELECT" }
     );
