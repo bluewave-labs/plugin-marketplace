@@ -1,0 +1,461 @@
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Box,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  FormControlLabel,
+  Switch,
+  Button,
+  Stack,
+  Alert,
+  CircularProgress,
+  Divider,
+  Chip,
+  Collapse,
+} from "@mui/material";
+import { JiraAssetsAttributeMapping } from "./JiraAssetsAttributeMapping";
+
+interface Schema {
+  id: string;
+  name: string;
+  objectSchemaKey: string;
+}
+
+interface ObjectType {
+  id: string;
+  name: string;
+  objectCount?: number;
+}
+
+interface JiraAssetsConfigurationProps {
+  configData?: Record<string, any>;
+  onConfigChange?: (key: string, value: any) => void;
+  onSaveConfiguration?: () => void;
+  onTestConnection?: () => void;
+  isSavingConfig?: boolean;
+  isTestingConnection?: boolean;
+  pluginApiCall?: (method: string, path: string, body?: any) => Promise<any>;
+}
+
+export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = ({
+  configData = {},
+  onConfigChange,
+  onSaveConfiguration,
+  onTestConnection,
+  isSavingConfig = false,
+  isTestingConnection = false,
+  pluginApiCall,
+}) => {
+  const [localConfig, setLocalConfig] = useState<Record<string, any>>({
+    sync_enabled: false,
+    sync_interval_hours: 24,
+    ...configData,
+  });
+
+  const [schemas, setSchemas] = useState<Schema[]>([]);
+  const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
+  const [isLoadingSchemas, setIsLoadingSchemas] = useState(false);
+  const [isLoadingObjectTypes, setIsLoadingObjectTypes] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [connectionMessage, setConnectionMessage] = useState("");
+
+  // Sync local config with parent
+  useEffect(() => {
+    setLocalConfig((prev) => ({ ...prev, ...configData }));
+  }, [configData]);
+
+  const handleChange = useCallback((key: string, value: any) => {
+    setLocalConfig((prev) => ({ ...prev, [key]: value }));
+    if (onConfigChange) {
+      onConfigChange(key, value);
+    }
+  }, [onConfigChange]);
+
+  // Load schemas when connection is configured
+  const loadSchemas = useCallback(async () => {
+    if (!pluginApiCall || !localConfig.jira_base_url || !localConfig.workspace_id) return;
+
+    setIsLoadingSchemas(true);
+    try {
+      const response = await pluginApiCall("GET", "/schemas");
+      if (response && Array.isArray(response)) {
+        setSchemas(response);
+      }
+    } catch (error) {
+      console.error("Failed to load schemas:", error);
+    } finally {
+      setIsLoadingSchemas(false);
+    }
+  }, [pluginApiCall, localConfig.jira_base_url, localConfig.workspace_id]);
+
+  // Load object types when schema is selected
+  const loadObjectTypes = useCallback(async (schemaId: string) => {
+    if (!pluginApiCall || !schemaId) return;
+
+    setIsLoadingObjectTypes(true);
+    try {
+      const response = await pluginApiCall("GET", `/schemas/${schemaId}/object-types`);
+      if (response && Array.isArray(response)) {
+        setObjectTypes(response);
+      }
+    } catch (error) {
+      console.error("Failed to load object types:", error);
+    } finally {
+      setIsLoadingObjectTypes(false);
+    }
+  }, [pluginApiCall]);
+
+  // Test connection handler
+  const handleTestConnection = async () => {
+    if (!pluginApiCall) {
+      if (onTestConnection) onTestConnection();
+      return;
+    }
+
+    setConnectionStatus("testing");
+    setConnectionMessage("");
+
+    try {
+      const response = await pluginApiCall("POST", "/test-connection", {
+        jira_base_url: localConfig.jira_base_url,
+        workspace_id: localConfig.workspace_id,
+        email: localConfig.email,
+        api_token: localConfig.api_token,
+      });
+
+      if (response?.success) {
+        setConnectionStatus("success");
+        setConnectionMessage(response.message || "Connection successful");
+        // Load schemas after successful connection
+        loadSchemas();
+      } else {
+        setConnectionStatus("error");
+        setConnectionMessage(response?.message || "Connection failed");
+      }
+    } catch (error: any) {
+      setConnectionStatus("error");
+      setConnectionMessage(error.message || "Connection test failed");
+    }
+  };
+
+  // Handle schema selection
+  const handleSchemaChange = (schemaId: string) => {
+    handleChange("selected_schema_id", schemaId);
+    handleChange("selected_object_type_id", "");
+    setObjectTypes([]);
+    if (schemaId) {
+      loadObjectTypes(schemaId);
+    }
+  };
+
+  // Load schemas on mount if already configured
+  useEffect(() => {
+    if (localConfig.jira_base_url && localConfig.workspace_id && schemas.length === 0) {
+      loadSchemas();
+    }
+  }, [localConfig.jira_base_url, localConfig.workspace_id, loadSchemas, schemas.length]);
+
+  // Load object types if schema is already selected
+  useEffect(() => {
+    if (localConfig.selected_schema_id && objectTypes.length === 0) {
+      loadObjectTypes(localConfig.selected_schema_id);
+    }
+  }, [localConfig.selected_schema_id, loadObjectTypes, objectTypes.length]);
+
+  const syncIntervalOptions = [
+    { value: 1, label: "Every hour" },
+    { value: 6, label: "Every 6 hours" },
+    { value: 12, label: "Every 12 hours" },
+    { value: 24, label: "Every 24 hours" },
+    { value: 48, label: "Every 48 hours" },
+  ];
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" fontSize={13} sx={{ mb: 3 }}>
+        Connect to your Jira Service Management Assets to import AI Systems as use-cases.
+      </Typography>
+
+      {/* Step 1: Connection Settings */}
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: "#344054" }}>
+        Step 1: Connection Settings
+      </Typography>
+
+      <Stack spacing={2.5}>
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            JIRA Base URL *
+          </Typography>
+          <TextField
+            fullWidth
+            placeholder="https://your-company.atlassian.net"
+            value={localConfig.jira_base_url || ""}
+            onChange={(e) => handleChange("jira_base_url", e.target.value)}
+            size="small"
+            sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
+          />
+        </Box>
+
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            Workspace ID *
+          </Typography>
+          <TextField
+            fullWidth
+            placeholder="Enter your JSM Assets workspace ID"
+            value={localConfig.workspace_id || ""}
+            onChange={(e) => handleChange("workspace_id", e.target.value)}
+            size="small"
+            helperText="Found in Assets settings or the URL when viewing Assets"
+            sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
+          />
+        </Box>
+
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            Email *
+          </Typography>
+          <TextField
+            fullWidth
+            type="email"
+            placeholder="your-email@company.com"
+            value={localConfig.email || ""}
+            onChange={(e) => handleChange("email", e.target.value)}
+            size="small"
+            sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
+          />
+        </Box>
+
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            API Token *
+          </Typography>
+          <TextField
+            fullWidth
+            type="password"
+            placeholder="Enter your Atlassian API token"
+            value={localConfig.api_token || ""}
+            onChange={(e) => handleChange("api_token", e.target.value)}
+            size="small"
+            helperText="Generate at id.atlassian.com/manage-profile/security/api-tokens"
+            sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
+          />
+        </Box>
+      </Stack>
+
+      {/* Connection Status */}
+      {connectionStatus !== "idle" && (
+        <Box sx={{ mt: 2 }}>
+          <Alert
+            severity={connectionStatus === "success" ? "success" : connectionStatus === "error" ? "error" : "info"}
+            sx={{ fontSize: "13px" }}
+          >
+            {connectionStatus === "testing" ? "Testing connection..." : connectionMessage}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Test Connection Button */}
+      <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+        <Button
+          variant="outlined"
+          onClick={handleTestConnection}
+          disabled={
+            isTestingConnection ||
+            connectionStatus === "testing" ||
+            !localConfig.jira_base_url ||
+            !localConfig.workspace_id ||
+            !localConfig.email ||
+            !localConfig.api_token
+          }
+          sx={{
+            borderColor: "#13715B",
+            color: "#13715B",
+            textTransform: "none",
+            fontSize: "13px",
+            fontWeight: 500,
+            "&:hover": { borderColor: "#0f5a47", backgroundColor: "rgba(19, 113, 91, 0.04)" },
+            "&:disabled": { borderColor: "#d0d5dd", color: "#98a2b3" },
+          }}
+        >
+          {isTestingConnection || connectionStatus === "testing" ? (
+            <>
+              <CircularProgress size={16} sx={{ mr: 1 }} />
+              Testing...
+            </>
+          ) : (
+            "Test Connection"
+          )}
+        </Button>
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      {/* Step 2: Schema & Object Type Selection */}
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: "#344054" }}>
+        Step 2: Select Schema & Object Type
+      </Typography>
+
+      <Stack spacing={2.5}>
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            Schema
+          </Typography>
+          <FormControl fullWidth size="small">
+            <Select
+              value={localConfig.selected_schema_id || ""}
+              onChange={(e) => handleSchemaChange(e.target.value)}
+              disabled={isLoadingSchemas || schemas.length === 0}
+              displayEmpty
+              sx={{ fontSize: "13px", backgroundColor: "white" }}
+            >
+              <MenuItem value="" sx={{ fontSize: "13px" }}>
+                {isLoadingSchemas ? "Loading schemas..." : "Select a schema"}
+              </MenuItem>
+              {schemas.map((schema) => (
+                <MenuItem key={schema.id} value={schema.id} sx={{ fontSize: "13px" }}>
+                  {schema.name} ({schema.objectSchemaKey})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Box>
+          <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+            Object Type (AI Systems)
+          </Typography>
+          <FormControl fullWidth size="small">
+            <Select
+              value={localConfig.selected_object_type_id || ""}
+              onChange={(e) => handleChange("selected_object_type_id", e.target.value)}
+              disabled={isLoadingObjectTypes || objectTypes.length === 0 || !localConfig.selected_schema_id}
+              displayEmpty
+              sx={{ fontSize: "13px", backgroundColor: "white" }}
+            >
+              <MenuItem value="" sx={{ fontSize: "13px" }}>
+                {isLoadingObjectTypes ? "Loading object types..." : "Select an object type"}
+              </MenuItem>
+              {objectTypes.map((ot) => (
+                <MenuItem key={ot.id} value={ot.id} sx={{ fontSize: "13px" }}>
+                  {ot.name}
+                  {ot.objectCount !== undefined && (
+                    <Chip label={`${ot.objectCount} objects`} size="small" sx={{ ml: 1, fontSize: "11px" }} />
+                  )}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      </Stack>
+
+      <Divider sx={{ my: 3 }} />
+
+      {/* Step 3: Sync Settings */}
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: "#344054" }}>
+        Step 3: Sync Settings
+      </Typography>
+
+      <Stack spacing={2.5}>
+        <Box>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={localConfig.sync_enabled || false}
+                onChange={(e) => handleChange("sync_enabled", e.target.checked)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#13715B" },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#13715B" },
+                }}
+              />
+            }
+            label={
+              <Typography variant="body2" fontSize={13} sx={{ color: "#344054" }}>
+                Enable automatic sync
+              </Typography>
+            }
+          />
+        </Box>
+
+        {localConfig.sync_enabled && (
+          <Box>
+            <Typography variant="body2" fontWeight={500} fontSize={13} sx={{ mb: 0.75, color: "#344054" }}>
+              Sync Interval
+            </Typography>
+            <FormControl fullWidth size="small">
+              <Select
+                value={localConfig.sync_interval_hours || 24}
+                onChange={(e) => handleChange("sync_interval_hours", e.target.value)}
+                sx={{ fontSize: "13px", backgroundColor: "white" }}
+              >
+                {syncIntervalOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value} sx={{ fontSize: "13px" }}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        )}
+      </Stack>
+
+      {/* Last Sync Info */}
+      {localConfig.last_sync_at && (
+        <Box sx={{ mt: 2 }}>
+          <Alert
+            severity={localConfig.last_sync_status === "success" ? "success" : "warning"}
+            sx={{ fontSize: "13px" }}
+          >
+            Last sync: {new Date(localConfig.last_sync_at).toLocaleString()} -{" "}
+            {localConfig.last_sync_status === "success" ? "Successful" : localConfig.last_sync_message}
+          </Alert>
+        </Box>
+      )}
+
+      <Divider sx={{ my: 3 }} />
+
+      {/* Step 4: Attribute Mapping */}
+      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: "#344054" }}>
+        Step 4: Attribute Mapping (Optional)
+      </Typography>
+
+      <JiraAssetsAttributeMapping
+        pluginApiCall={pluginApiCall}
+        selectedObjectTypeId={localConfig.selected_object_type_id}
+      />
+
+      {/* Save Button */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
+        {onSaveConfiguration && (
+          <Button
+            variant="contained"
+            onClick={onSaveConfiguration}
+            disabled={isSavingConfig || !localConfig.jira_base_url || !localConfig.workspace_id || !localConfig.email || !localConfig.api_token}
+            sx={{
+              backgroundColor: "#13715B",
+              textTransform: "none",
+              fontSize: "13px",
+              fontWeight: 500,
+              "&:hover": { backgroundColor: "#0f5a47" },
+              "&:disabled": { backgroundColor: "#d0d5dd" },
+            }}
+          >
+            {isSavingConfig ? (
+              <>
+                <CircularProgress size={16} sx={{ mr: 1, color: "white" }} />
+                Saving...
+              </>
+            ) : (
+              "Save Configuration"
+            )}
+          </Button>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+export default JiraAssetsConfiguration;

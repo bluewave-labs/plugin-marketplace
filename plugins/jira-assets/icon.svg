@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="jiraGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2684FF"/>
+      <stop offset="100%" style="stop-color:#0052CC"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="32" fill="url(#jiraGradient)"/>
+  <g transform="translate(48, 48) scale(0.625)">
+    <path fill="#FFFFFF" d="M215.4 117.8L117.8 20.2 107.2 9.6c-4.1-4.1-10.7-4.1-14.8 0L9.6 92.4c-4.1 4.1-4.1 10.7 0 14.8l82.8 82.8L107.2 205c4.1 4.1 10.7 4.1 14.8 0l93.4-93.4c4.1-4.1 4.1-10.7 0-14.8zm-107.6 37.4L69.3 116.8l38.5-38.5 38.5 38.5-38.5 38.4z"/>
+    <path fill="#FFFFFF" opacity="0.8" d="M107.8 78.3c-25.5 25.5-25.5 66.9 0 92.4l38.5-38.5-38.5-53.9z"/>
+    <path fill="#FFFFFF" opacity="0.8" d="M145.7 117l-38.5-38.5c-25.5 25.5-25.5 66.9 0 92.4l38.5-53.9z"/>
+  </g>
+  <g transform="translate(170, 170)">
+    <circle cx="30" cy="30" r="35" fill="#FFFFFF"/>
+    <path fill="#2684FF" d="M30 10c11 0 20 9 20 20s-9 20-20 20-20-9-20-20 9-20 20-20zm0 8c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12-5.4-12-12-12zm0 4c4.4 0 8 3.6 8 8s-3.6 8-8 8-8-3.6-8-8 3.6-8 8-8z"/>
+  </g>
+</svg>
