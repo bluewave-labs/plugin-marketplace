@@ -182,9 +182,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
 
       if (response?.success) {
         setConnectionStatus("success");
-        setConnectionMessage(response.message || "Connection successful");
-        // Load schemas after successful connection
-        loadSchemas();
+        setConnectionMessage(response.message || "Connection successful. Click 'Save Configuration' to proceed to Step 2.");
       } else {
         setConnectionStatus("error");
         setConnectionMessage(response?.message || "Connection failed");
