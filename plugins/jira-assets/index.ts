@@ -843,6 +843,22 @@ export const metadata: PluginMetadata = {
 // ========== PLUGIN ROUTER ==========
 
 /**
+ * Helper to load config from jira_assets_config table
+ * Used when ctx.configuration doesn't have the JIRA config
+ */
+async function loadConfigFromDb(sequelize: any, tenantId: string): Promise<any> {
+  try {
+    const configs: any[] = await sequelize.query(
+      `SELECT * FROM "${tenantId}".jira_assets_config LIMIT 1`,
+      { type: "SELECT" }
+    );
+    return configs.length > 0 ? configs[0] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * GET /config - Get current configuration
  */
 async function handleGetConfig(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
@@ -1056,23 +1072,29 @@ async function handleGetSchemas(ctx: PluginRouteContext): Promise<PluginRouteRes
  * GET /schemas/:schemaId/object-types - Get object types for a schema
  */
 async function handleGetObjectTypes(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
-  const { configuration, params } = ctx;
+  const { configuration, params, sequelize, tenantId } = ctx;
   const schemaId = params.schemaId;
 
-  if (!configuration?.jira_base_url || !configuration?.workspace_id) {
+  // Load config from database if not in context
+  let config = configuration;
+  if (!config?.jira_base_url || !config?.workspace_id) {
+    config = await loadConfigFromDb(sequelize, tenantId);
+  }
+
+  if (!config?.jira_base_url || !config?.workspace_id) {
     return { status: 400, data: { error: "JIRA not configured" } };
   }
 
   try {
-    const apiToken = Buffer.from(configuration.api_token_encrypted || "", "base64").toString("utf-8") ||
-                     configuration.api_token;
+    const apiToken = Buffer.from(config.api_token_encrypted || "", "base64").toString("utf-8") ||
+                     config.api_token;
 
     const client = new JiraAssetsClient(
-      configuration.jira_base_url,
-      configuration.workspace_id,
-      configuration.email,
+      config.jira_base_url,
+      config.workspace_id,
+      config.email,
       apiToken,
-      configuration.deployment_type || "cloud"
+      config.deployment_type || "cloud"
     );
 
     const objectTypes = await client.getObjectTypes(schemaId);
@@ -1086,23 +1108,29 @@ async function handleGetObjectTypes(ctx: PluginRouteContext): Promise<PluginRout
  * GET /object-types/:objectTypeId/attributes - Get attributes for an object type
  */
 async function handleGetAttributes(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
-  const { configuration, params } = ctx;
+  const { configuration, params, sequelize, tenantId } = ctx;
   const objectTypeId = params.objectTypeId;
 
-  if (!configuration?.jira_base_url || !configuration?.workspace_id) {
+  // Load config from database if not in context
+  let config = configuration;
+  if (!config?.jira_base_url || !config?.workspace_id) {
+    config = await loadConfigFromDb(sequelize, tenantId);
+  }
+
+  if (!config?.jira_base_url || !config?.workspace_id) {
     return { status: 400, data: { error: "JIRA not configured" } };
   }
 
   try {
-    const apiToken = Buffer.from(configuration.api_token_encrypted || "", "base64").toString("utf-8") ||
-                     configuration.api_token;
+    const apiToken = Buffer.from(config.api_token_encrypted || "", "base64").toString("utf-8") ||
+                     config.api_token;
 
     const client = new JiraAssetsClient(
-      configuration.jira_base_url,
-      configuration.workspace_id,
-      configuration.email,
+      config.jira_base_url,
+      config.workspace_id,
+      config.email,
       apiToken,
-      configuration.deployment_type || "cloud"
+      config.deployment_type || "cloud"
     );
 
     const attributes = await client.getAttributes(objectTypeId);
@@ -1116,23 +1144,29 @@ async function handleGetAttributes(ctx: PluginRouteContext): Promise<PluginRoute
  * GET /object-types/:objectTypeId/objects - Get objects of a type
  */
 async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
-  const { configuration, params } = ctx;
+  const { configuration, params, sequelize, tenantId } = ctx;
   const objectTypeId = params.objectTypeId;
 
-  if (!configuration?.jira_base_url || !configuration?.workspace_id) {
+  // Load config from database if not in context
+  let config = configuration;
+  if (!config?.jira_base_url || !config?.workspace_id) {
+    config = await loadConfigFromDb(sequelize, tenantId);
+  }
+
+  if (!config?.jira_base_url || !config?.workspace_id) {
     return { status: 400, data: { error: "JIRA not configured" } };
   }
 
   try {
-    const apiToken = Buffer.from(configuration.api_token_encrypted || "", "base64").toString("utf-8") ||
-                     configuration.api_token;
+    const apiToken = Buffer.from(config.api_token_encrypted || "", "base64").toString("utf-8") ||
+                     config.api_token;
 
     const client = new JiraAssetsClient(
-      configuration.jira_base_url,
-      configuration.workspace_id,
-      configuration.email,
+      config.jira_base_url,
+      config.workspace_id,
+      config.email,
       apiToken,
-      configuration.deployment_type || "cloud"
+      config.deployment_type || "cloud"
     );
 
     const objects = await client.getObjects(objectTypeId);
@@ -1175,24 +1209,30 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
     return { status: 400, data: { error: "No objects selected for import" } };
   }
 
-  if (!configuration?.jira_base_url || !configuration?.workspace_id) {
+  // Load config from database if not in context
+  let config = configuration;
+  if (!config?.jira_base_url || !config?.workspace_id) {
+    config = await loadConfigFromDb(sequelize, tenantId);
+  }
+
+  if (!config?.jira_base_url || !config?.workspace_id) {
     return { status: 400, data: { error: "JIRA not configured" } };
   }
 
   try {
-    const apiToken = Buffer.from(configuration.api_token_encrypted || "", "base64").toString("utf-8") ||
-                     configuration.api_token;
+    const apiToken = Buffer.from(config.api_token_encrypted || "", "base64").toString("utf-8") ||
+                     config.api_token;
 
     const client = new JiraAssetsClient(
-      configuration.jira_base_url,
-      configuration.workspace_id,
-      configuration.email,
+      config.jira_base_url,
+      config.workspace_id,
+      config.email,
       apiToken,
-      configuration.deployment_type || "cloud"
+      config.deployment_type || "cloud"
     );
 
     // Get attribute mappings
-    const attributeMappings = configuration.attribute_mappings || {};
+    const attributeMappings = config.attribute_mappings || {};
 
     // Check for organizational project if needed
     let orgProject: any = null;
@@ -1293,21 +1333,27 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
 async function handleManualSync(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
   const { sequelize, tenantId, userId, configuration } = ctx;
 
-  if (!configuration?.jira_base_url || !configuration?.workspace_id) {
+  // Load config from database if not in context
+  let dbConfig = configuration;
+  if (!dbConfig?.jira_base_url || !dbConfig?.workspace_id) {
+    dbConfig = await loadConfigFromDb(sequelize, tenantId);
+  }
+
+  if (!dbConfig?.jira_base_url || !dbConfig?.workspace_id) {
     return { status: 400, data: { error: "JIRA not configured" } };
   }
 
   // Decrypt API token
-  const apiToken = Buffer.from(configuration.api_token_encrypted || "", "base64").toString("utf-8") ||
-                   configuration.api_token;
+  const apiToken = Buffer.from(dbConfig.api_token_encrypted || "", "base64").toString("utf-8") ||
+                   dbConfig.api_token;
 
   const config: JiraAssetsConfig = {
-    jira_base_url: configuration.jira_base_url,
-    workspace_id: configuration.workspace_id,
-    email: configuration.email,
+    jira_base_url: dbConfig.jira_base_url,
+    workspace_id: dbConfig.workspace_id,
+    email: dbConfig.email,
     api_token: apiToken,
-    selected_schema_id: configuration.selected_schema_id,
-    selected_object_type_id: configuration.selected_object_type_id,
+    selected_schema_id: dbConfig.selected_schema_id,
+    selected_object_type_id: dbConfig.selected_object_type_id,
   };
 
   const result = await syncObjects(tenantId, config, { sequelize }, "manual", userId);
