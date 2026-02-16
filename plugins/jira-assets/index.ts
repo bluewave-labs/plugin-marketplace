@@ -257,12 +257,12 @@ class JiraAssetsClient {
     return this.request<JiraObject>(`object/${objectId}`);
   }
 
-  async testConnection(): Promise<boolean> {
+  async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       await this.getSchemas();
-      return true;
-    } catch {
-      return false;
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
     }
   }
 }
@@ -498,9 +498,9 @@ export async function testConnection(config: JiraAssetsConfig): Promise<TestConn
       config.api_token
     );
 
-    const success = await client.testConnection();
-    if (!success) {
-      throw new Error("Failed to connect to JIRA Assets");
+    const result = await client.testConnection();
+    if (!result.success) {
+      throw new Error(result.error || "Failed to connect to JIRA Assets");
     }
 
     return {
