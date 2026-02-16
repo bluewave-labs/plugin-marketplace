@@ -246,12 +246,14 @@ class JiraAssetsClient {
       const result = await this.request<JiraObjectType[]>(
         `objectschema/${schemaId}/objecttypes/flat`
       );
+      console.log("[JiraAssets] DC getObjectTypes raw:", JSON.stringify(result, null, 2));
       return Array.isArray(result) ? result : [];
     } else {
       // Cloud returns { values: [...] }
       const result = await this.request<{ values: JiraObjectType[] }>(
         `objectschema/${schemaId}/objecttypes`
       );
+      console.log("[JiraAssets] Cloud getObjectTypes raw:", JSON.stringify(result, null, 2));
       return result.values || [];
     }
   }
@@ -1098,8 +1100,10 @@ async function handleGetObjectTypes(ctx: PluginRouteContext): Promise<PluginRout
     );
 
     const objectTypes = await client.getObjectTypes(schemaId);
+    console.log("[JiraAssets] getObjectTypes response:", JSON.stringify(objectTypes, null, 2));
     return { status: 200, data: objectTypes };
   } catch (error: any) {
+    console.error("[JiraAssets] getObjectTypes error:", error.message);
     return { status: 500, data: { error: error.message } };
   }
 }
