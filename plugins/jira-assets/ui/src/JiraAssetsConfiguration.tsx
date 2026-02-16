@@ -169,12 +169,15 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
     setConnectionMessage("");
 
     try {
+      // Note: test-connection goes through the main controller which expects { configuration: {...} }
       const response = await pluginApiCall("POST", "/test-connection", {
-        jira_base_url: localConfig.jira_base_url,
-        workspace_id: localConfig.workspace_id,
-        email: localConfig.email,
-        api_token: localConfig.api_token,
-        deployment_type: localConfig.deployment_type || "cloud",
+        configuration: {
+          jira_base_url: localConfig.jira_base_url,
+          workspace_id: localConfig.workspace_id,
+          email: localConfig.email,
+          api_token: localConfig.api_token,
+          deployment_type: localConfig.deployment_type || "cloud",
+        },
       });
 
       if (response?.success) {
