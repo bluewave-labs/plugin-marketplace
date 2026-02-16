@@ -229,35 +229,61 @@ class JiraAssetsClient {
   }
 
   async getSchemas(): Promise<JiraSchema[]> {
-    const result = await this.request<{ values: JiraSchema[] }>("objectschema/list");
-    return result.values || [];
+    if (this.deploymentType === "datacenter") {
+      // Data Center returns array directly
+      const result = await this.request<JiraSchema[]>("objectschema/list");
+      return Array.isArray(result) ? result : [];
+    } else {
+      // Cloud returns { values: [...] }
+      const result = await this.request<{ values: JiraSchema[] }>("objectschema/list");
+      return result.values || [];
+    }
   }
 
   async getObjectTypes(schemaId: string): Promise<JiraObjectType[]> {
-    const result = await this.request<{ values: JiraObjectType[] }>(
-      `objectschema/${schemaId}/objecttypes`
-    );
-    return result.values || [];
+    if (this.deploymentType === "datacenter") {
+      // Data Center: /objectschema/{id}/objecttypes/flat returns array directly
+      const result = await this.request<JiraObjectType[]>(
+        `objectschema/${schemaId}/objecttypes/flat`
+      );
+      return Array.isArray(result) ? result : [];
+    } else {
+      // Cloud returns { values: [...] }
+      const result = await this.request<{ values: JiraObjectType[] }>(
+        `objectschema/${schemaId}/objecttypes`
+      );
+      return result.values || [];
+    }
   }
 
   async getAttributes(objectTypeId: string): Promise<JiraAttribute[]> {
     const result = await this.request<JiraAttribute[]>(
       `objecttype/${objectTypeId}/attributes`
     );
-    return result || [];
+    return Array.isArray(result) ? result : [];
   }
 
   async getObjects(objectTypeId: string, maxResults: number = 1000): Promise<JiraObject[]> {
-    const result = await this.request<{ values: JiraObject[] }>(
-      `object/aql`,
-      "POST",
-      {
-        qlQuery: `objectType = "${objectTypeId}"`,
-        maxResults,
-        includeAttributes: true,
-      }
-    );
-    return result.values || [];
+    if (this.deploymentType === "datacenter") {
+      // Data Center uses IQL (Insight Query Language) endpoint
+      const result = await this.request<{ objectEntries: JiraObject[] }>(
+        `iql/objects?objectSchemaId=${this.workspaceId}&iql=objectTypeId=${objectTypeId}&resultPerPage=${maxResults}&includeAttributes=true`,
+        "GET"
+      );
+      return result.objectEntries || [];
+    } else {
+      // Cloud uses AQL endpoint
+      const result = await this.request<{ values: JiraObject[] }>(
+        `object/aql`,
+        "POST",
+        {
+          qlQuery: `objectType = "${objectTypeId}"`,
+          maxResults,
+          includeAttributes: true,
+        }
+      );
+      return result.values || [];
+    }
   }
 
   async getObjectById(objectId: string): Promise<JiraObject> {
