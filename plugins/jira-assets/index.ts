@@ -380,6 +380,11 @@ export async function install(
       ON "${tenantId}".jira_assets_use_cases(sync_status)
     `);
 
+    // Create sequence for UC-ID generation
+    await sequelize.query(`
+      CREATE SEQUENCE IF NOT EXISTS "${tenantId}".jira_use_case_uc_id_seq START 1
+    `);
+
     // Create jira_assets_sync_history table
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS "${tenantId}".jira_assets_sync_history (
@@ -397,10 +402,6 @@ export async function install(
       )
     `);
 
-    // Create sequence for UC-ID generation
-    await sequelize.query(`
-      CREATE SEQUENCE IF NOT EXISTS "${tenantId}".jira_use_case_uc_id_seq START 1
-    `);
 
     return {
       success: true,
@@ -437,7 +438,6 @@ export async function uninstall(
     await sequelize.query(`DROP TABLE IF EXISTS "${tenantId}".jira_assets_config CASCADE`);
 
     // Drop sequence
-    await sequelize.query(`DROP SEQUENCE IF EXISTS "${tenantId}".jira_use_case_uc_id_seq`);
 
     return {
       success: true,
@@ -630,7 +630,6 @@ async function syncObjects(
       const jiraObjectId = String(jiraObj.id);
       const existing = existingMap.get(jiraObjectId);
 
-
       // Build data object to store - use injected attrIdToName mapping
       const attrIdToName = (jiraObj as any)._attrIdToName || {};
       const transformedAttrs = transformAttributes(jiraObj.attributes || [], attrIdToName);
@@ -663,8 +662,7 @@ async function syncObjects(
         );
         objectsCreated++;
       } else {
-        // Always overwrite with latest data from JIRA
-        // (JIRA may not update timestamps when only attributes change)
+        // Update existing record
         await sequelize.query(
           `UPDATE "${tenantId}".jira_assets_use_cases
            SET data = :data, last_synced_at = :lastSyncedAt, sync_status = 'synced', updated_at = CURRENT_TIMESTAMP
@@ -682,12 +680,11 @@ async function syncObjects(
       existingMap.delete(jiraObjectId);
     }
 
-    // Delete objects that no longer exist in JIRA (those remaining in existingMap)
+    // Delete objects that no longer exist in JIRA
     const remainingIds = Array.from(existingMap.keys());
     for (const jiraObjectId of remainingIds) {
       await sequelize.query(
-        `DELETE FROM "${tenantId}".jira_assets_use_cases
-         WHERE jira_object_id = :jiraObjectId`,
+        `DELETE FROM "${tenantId}".jira_assets_use_cases WHERE jira_object_id = :jiraObjectId`,
         { replacements: { jiraObjectId } }
       );
       objectsDeleted++;
@@ -1262,7 +1259,7 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
  * POST /import - Import selected JIRA objects
  */
 async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
-  const { sequelize, tenantId, body, configuration } = ctx;
+  const { sequelize, tenantId, userId, body, configuration } = ctx;
 
 
   const { object_ids } = body;
@@ -1337,7 +1334,7 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
           updated: jiraObj.updated,
         };
 
-        // Insert use case with data JSONB
+        // Insert use case
         await sequelize.query(
           `INSERT INTO "${tenantId}".jira_assets_use_cases
            (jira_object_id, uc_id, data, last_synced_at, sync_status)
@@ -1460,8 +1457,7 @@ async function handleGetUseCases(ctx: PluginRouteContext): Promise<PluginRouteRe
 
   try {
     const useCases: any[] = await sequelize.query(
-      `SELECT * FROM "${tenantId}".jira_assets_use_cases
-       ORDER BY created_at DESC`,
+      `SELECT * FROM "${tenantId}".jira_assets_use_cases ORDER BY created_at DESC`,
       { type: "SELECT" }
     );
 
