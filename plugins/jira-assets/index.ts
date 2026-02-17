@@ -276,18 +276,15 @@ class JiraAssetsClient {
       );
       return result.objectEntries || [];
     } else {
-      // Cloud uses AQL endpoint - use objectTypeId (numeric ID), not objectType (name)
-      const result = await this.request<{ values: JiraObject[] }>(
-        `object/aql`,
-        "POST",
-        {
-          qlQuery: `objectTypeId = ${objectTypeId}`,
-          maxResults,
-          includeAttributes: true,
-        }
+      // Cloud - use direct object listing endpoint (simpler than AQL)
+      const result = await this.request<any>(
+        `objecttype/${objectTypeId}/objects`
       );
-      console.log("[JiraAssets] AQL query result:", JSON.stringify(result, null, 2).substring(0, 500));
-      return result.values || [];
+      console.log("[JiraAssets] Objects response type:", typeof result, "isArray:", Array.isArray(result));
+      // API returns { values: [...] } or array directly
+      const objects = Array.isArray(result) ? result : (result?.values || result?.objects || []);
+      console.log("[JiraAssets] Found", objects.length, "objects");
+      return objects;
     }
   }
 
