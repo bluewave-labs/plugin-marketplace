@@ -285,10 +285,13 @@ class JiraAssetsClient {
           includeAttributes: true,
         }
       );
-      console.log("[JiraAssets] Objects response type:", typeof result, "isArray:", Array.isArray(result));
+      console.log("[JiraAssets] Objects response:", JSON.stringify(result, null, 2).substring(0, 1000));
       // API returns { values: [...] } or { entries: [...] } or array directly
       const objects = Array.isArray(result) ? result : (result?.values || result?.entries || result?.objects || []);
       console.log("[JiraAssets] Found", objects.length, "objects");
+      if (objects.length > 0) {
+        console.log("[JiraAssets] First object structure:", JSON.stringify(objects[0], null, 2).substring(0, 500));
+      }
       return objects;
     }
   }
@@ -757,20 +760,26 @@ async function syncObjects(
 
 // ========== HELPER FUNCTIONS ==========
 
-function transformAttributes(attributes: JiraObject["attributes"]): Record<string, any> {
+function transformAttributes(attributes: any): Record<string, any> {
   const result: Record<string, any> = {};
 
+  // Handle case where attributes is not iterable
+  if (!attributes || !Array.isArray(attributes)) {
+    console.log("[JiraAssets] transformAttributes: attributes is not an array:", typeof attributes);
+    return result;
+  }
+
   for (const attr of attributes) {
-    const name = attr.objectTypeAttribute?.name;
+    const name = attr.objectTypeAttribute?.name || attr.objectTypeAttributeId || attr.name;
     if (!name) continue;
 
-    const values = attr.objectAttributeValues || [];
-    if (values.length === 0) {
-      result[name] = null;
+    const values = attr.objectAttributeValues || attr.values || [];
+    if (!Array.isArray(values) || values.length === 0) {
+      result[name] = attr.value || attr.displayValue || null;
     } else if (values.length === 1) {
       result[name] = values[0].displayValue || values[0].value;
     } else {
-      result[name] = values.map((v) => v.displayValue || v.value);
+      result[name] = values.map((v: any) => v.displayValue || v.value);
     }
   }
 
@@ -813,6 +822,57 @@ export const metadata: PluginMetadata = {
   version: "1.0.0",
   author: "VerifyWise",
   description: "Import AI Systems from Jira Service Management Assets as use-cases",
+};
+
+// ========== DATA PROVIDERS ==========
+// Declares what data this plugin can provide to core VerifyWise
+
+export const dataProviders = {
+  // This plugin provides use-cases/projects data
+  "use-cases": {
+    enabled: true,
+    // Transform JIRA use cases to match the Project interface expected by the frontend
+    async getData(ctx: { sequelize: any; tenantId: string }): Promise<any[]> {
+      const { sequelize, tenantId } = ctx;
+
+      try {
+        const useCases: any[] = await sequelize.query(
+          `SELECT * FROM "${tenantId}".jira_assets_use_cases ORDER BY created_at DESC`,
+          { type: "SELECT" }
+        );
+
+        // Transform to match Project interface
+        return useCases.map((uc) => {
+          const data = typeof uc.data === 'string' ? JSON.parse(uc.data) : uc.data;
+          const name = data?.label || data?.attributes?.Name || uc.uc_id;
+          const objectKey = data?.objectKey || '';
+
+          return {
+            id: `jira-${uc.id}`, // Prefix to distinguish from native projects
+            project_title: name,
+            uc_id: uc.uc_id,
+            jira_object_key: objectKey,
+            owner: null,
+            users: [],
+            start_date: data?.created || uc.created_at,
+            ai_risk_classification: "not_piia", // Default - JIRA objects don't have this
+            type_of_high_risk_role: null,
+            goal: data?.attributes?.Description || data?.attributes?.Purpose || "",
+            last_updated: data?.updated || uc.updated_at,
+            last_updated_by: null,
+            is_organizational: false,
+            // Mark as JIRA-sourced for frontend to handle differently
+            _source: "jira-assets",
+            _jira_data: data,
+            _sync_status: uc.sync_status,
+          };
+        });
+      } catch (error) {
+        console.error("[JiraAssets] dataProviders.use-cases.getData error:", error);
+        return [];
+      }
+    },
+  },
 };
 
 // ========== PLUGIN ROUTER ==========
