@@ -836,6 +836,15 @@ async function loadConfigFromDb(sequelize: any, tenantId: string): Promise<any> 
 async function handleGetConfig(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
   const { sequelize, tenantId } = ctx;
 
+  // Migration: ensure deployment_type column exists
+  try {
+    await sequelize.query(
+      `ALTER TABLE "${tenantId}".jira_assets_config ADD COLUMN IF NOT EXISTS deployment_type VARCHAR(20) DEFAULT 'cloud'`
+    );
+  } catch {
+    // Column might already exist
+  }
+
   try {
     const configs: any[] = await sequelize.query(
       `SELECT id, jira_base_url, workspace_id, email, deployment_type, selected_schema_id, selected_object_type_id,
@@ -862,6 +871,15 @@ async function handleGetConfig(ctx: PluginRouteContext): Promise<PluginRouteResp
  */
 async function handleSaveConfig(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
   const { sequelize, tenantId, userId, body } = ctx;
+
+  // Migration: ensure deployment_type column exists
+  try {
+    await sequelize.query(
+      `ALTER TABLE "${tenantId}".jira_assets_config ADD COLUMN IF NOT EXISTS deployment_type VARCHAR(20) DEFAULT 'cloud'`
+    );
+  } catch {
+    // Column might already exist or table structure different
+  }
 
   // Check if config already exists
   const existing: any[] = await sequelize.query(
