@@ -1259,7 +1259,7 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
  * POST /import - Import selected JIRA objects
  */
 async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
-  const { sequelize, tenantId, userId, body, configuration } = ctx;
+  const { sequelize, tenantId, body, configuration } = ctx;
 
 
   const { object_ids } = body;
