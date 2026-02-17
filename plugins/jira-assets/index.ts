@@ -356,12 +356,12 @@ export async function install(
       )
     `);
 
-    // Create jira_assets_use_cases table
+    // Create jira_assets_use_cases table - links to native projects
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS "${tenantId}".jira_assets_use_cases (
         id SERIAL PRIMARY KEY,
         jira_object_id VARCHAR(100) NOT NULL UNIQUE,
-        uc_id VARCHAR(50) UNIQUE,
+        project_id INTEGER REFERENCES "${tenantId}".projects(id) ON DELETE CASCADE,
         data JSONB NOT NULL,
         last_synced_at TIMESTAMP,
         sync_status VARCHAR(50) DEFAULT 'synced',
@@ -424,10 +424,12 @@ export async function uninstall(
     // Count records before deletion
     let totalUseCases = 0;
     try {
-      const countResult: any = await sequelize.query(
-        `SELECT COUNT(*) as count FROM "${tenantId}".jira_assets_use_cases`
+      // Delete all JIRA-imported projects (by UC-ID pattern)
+      const deleteResult: any = await sequelize.query(
+        `DELETE FROM "${tenantId}".projects WHERE uc_id LIKE 'UC-J%' OR uc_id LIKE 'jira-assets-%' RETURNING id`,
+        { type: "SELECT" }
       );
-      totalUseCases = parseInt(countResult[0][0].count);
+      totalUseCases = deleteResult?.length || 0;
     } catch {
       // Table may not exist
     }
@@ -613,9 +615,9 @@ async function syncObjects(
     const jiraObjects = await client.getObjects(config.selected_object_type_id);
     const objectsFetched = jiraObjects.length;
 
-    // Get existing records
+    // Get existing records with project_id
     const existingRecords: any[] = await sequelize.query(
-      `SELECT jira_object_id, data FROM "${tenantId}".jira_assets_use_cases`,
+      `SELECT jira_object_id, project_id, data FROM "${tenantId}".jira_assets_use_cases`,
       { type: "SELECT" }
     );
     const existingMap = new Map(existingRecords.map((r) => [r.jira_object_id, r]));
@@ -634,6 +636,10 @@ async function syncObjects(
       const attrIdToName = (jiraObj as any)._attrIdToName || {};
       const transformedAttrs = transformAttributes(jiraObj.attributes || [], attrIdToName);
 
+      // Extract name and description
+      const name = jiraObj.label || transformedAttrs["Name"] || `JIRA-${jiraObj.objectKey}`;
+      const description = transformedAttrs["Description / Purpose"] || transformedAttrs["Description"] || "";
+
       const data = {
         id: jiraObj.id,
         objectKey: jiraObj.objectKey,
@@ -645,16 +651,36 @@ async function syncObjects(
       };
 
       if (!existing) {
-        // Create new record
+        // Create native project entry
         const ucId = await generateUcId(tenantId, sequelize);
+        const projectResult: any[] = await sequelize.query(
+          `INSERT INTO "${tenantId}".projects
+           (uc_id, project_title, owner, start_date, goal, geography, last_updated, created_at)
+           VALUES (:ucId, :title, 1, :startDate, :goal, 1, :lastUpdated, :createdAt)
+           RETURNING id`,
+          {
+            replacements: {
+              ucId,
+              title: name,
+              startDate: now,
+              goal: description || "Imported from JIRA Assets",
+              lastUpdated: now,
+              createdAt: now,
+            },
+            type: "SELECT",
+          }
+        );
+        const projectId = projectResult[0].id;
+
+        // Create JIRA link record
         await sequelize.query(
           `INSERT INTO "${tenantId}".jira_assets_use_cases
-           (jira_object_id, uc_id, data, last_synced_at, sync_status)
-           VALUES (:jiraObjectId, :ucId, :data, :lastSyncedAt, 'synced')`,
+           (jira_object_id, project_id, data, last_synced_at, sync_status)
+           VALUES (:jiraObjectId, :projectId, :data, :lastSyncedAt, 'synced')`,
           {
             replacements: {
               jiraObjectId,
-              ucId,
+              projectId,
               data: JSON.stringify(data),
               lastSyncedAt: now,
             },
@@ -662,7 +688,22 @@ async function syncObjects(
         );
         objectsCreated++;
       } else {
-        // Update existing record
+        // Update native project
+        await sequelize.query(
+          `UPDATE "${tenantId}".projects
+           SET project_title = :title, goal = :goal, last_updated = :lastUpdated
+           WHERE id = :projectId`,
+          {
+            replacements: {
+              title: name,
+              goal: description || "Imported from JIRA Assets",
+              lastUpdated: now,
+              projectId: existing.project_id,
+            },
+          }
+        );
+
+        // Update JIRA data
         await sequelize.query(
           `UPDATE "${tenantId}".jira_assets_use_cases
            SET data = :data, last_synced_at = :lastSyncedAt, sync_status = 'synced', updated_at = CURRENT_TIMESTAMP
@@ -683,10 +724,14 @@ async function syncObjects(
     // Delete objects that no longer exist in JIRA
     const remainingIds = Array.from(existingMap.keys());
     for (const jiraObjectId of remainingIds) {
-      await sequelize.query(
-        `DELETE FROM "${tenantId}".jira_assets_use_cases WHERE jira_object_id = :jiraObjectId`,
-        { replacements: { jiraObjectId } }
-      );
+      const record = existingMap.get(jiraObjectId);
+      // Delete native project (JIRA link deleted by CASCADE)
+      if (record?.project_id) {
+        await sequelize.query(
+          `DELETE FROM "${tenantId}".projects WHERE id = :projectId`,
+          { replacements: { projectId: record.project_id } }
+        );
+      }
       objectsDeleted++;
     }
 
@@ -1321,28 +1366,54 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
         // Fetch object from JIRA
         const jiraObj = await client.getObjectById(objectId);
         const jiraObjectId = String(jiraObj.id);
+        const transformedAttrs = transformAttributes(jiraObj.attributes, attrIdToName);
+
+        // Extract name and description
+        const name = jiraObj.label || transformedAttrs["Name"] || `JIRA-${jiraObj.objectKey}`;
+        const description = transformedAttrs["Description / Purpose"] || transformedAttrs["Description"] || "";
+
+        // Generate UC-ID
         const ucId = await generateUcId(tenantId, sequelize);
 
-        // Store entire JIRA object in data column
+        // Create minimal native project entry
+        const projectResult: any[] = await sequelize.query(
+          `INSERT INTO "${tenantId}".projects
+           (uc_id, project_title, owner, start_date, goal, geography, last_updated, created_at)
+           VALUES (:ucId, :title, 1, :startDate, :goal, 1, :lastUpdated, :createdAt)
+           RETURNING id`,
+          {
+            replacements: {
+              ucId,
+              title: name,
+              startDate: now,
+              goal: description || "Imported from JIRA Assets",
+              lastUpdated: now,
+              createdAt: now,
+            },
+            type: "SELECT",
+          }
+        );
+        const projectId = projectResult[0].id;
+
+        // Store full JIRA data with project link
         const data = {
           id: jiraObj.id,
           objectKey: jiraObj.objectKey,
           label: jiraObj.label,
           objectType: jiraObj.objectType,
-          attributes: transformAttributes(jiraObj.attributes, attrIdToName),
+          attributes: transformedAttrs,
           created: jiraObj.created,
           updated: jiraObj.updated,
         };
 
-        // Insert use case
         await sequelize.query(
           `INSERT INTO "${tenantId}".jira_assets_use_cases
-           (jira_object_id, uc_id, data, last_synced_at, sync_status)
-           VALUES (:jiraObjectId, :ucId, :data, :lastSyncedAt, 'synced')`,
+           (jira_object_id, project_id, data, last_synced_at, sync_status)
+           VALUES (:jiraObjectId, :projectId, :data, :lastSyncedAt, 'synced')`,
           {
             replacements: {
               jiraObjectId,
-              ucId,
+              projectId,
               data: JSON.stringify(data),
               lastSyncedAt: now,
             },
@@ -1457,7 +1528,10 @@ async function handleGetUseCases(ctx: PluginRouteContext): Promise<PluginRouteRe
 
   try {
     const useCases: any[] = await sequelize.query(
-      `SELECT * FROM "${tenantId}".jira_assets_use_cases ORDER BY created_at DESC`,
+      `SELECT j.*, p.uc_id, p.project_title as name
+       FROM "${tenantId}".jira_assets_use_cases j
+       LEFT JOIN "${tenantId}".projects p ON j.project_id = p.id
+       ORDER BY j.created_at DESC`,
       { type: "SELECT" }
     );
 

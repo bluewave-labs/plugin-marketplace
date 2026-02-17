@@ -923,12 +923,11 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
                 <TableBody>
                   {importedUseCases.map((uc) => {
                     const data = typeof uc.data === 'string' ? JSON.parse(uc.data) : uc.data;
-                    const name = data?.label || data?.attributes?.Name || '-';
                     const objectKey = data?.objectKey || '-';
                     return (
                       <TableRow key={uc.id} hover>
                         <TableCell sx={{ fontSize: "13px", fontFamily: "monospace", py: 1 }}>{uc.uc_id}</TableCell>
-                        <TableCell sx={{ fontSize: "13px", py: 1 }}>{name}</TableCell>
+                        <TableCell sx={{ fontSize: "13px", py: 1 }}>{uc.name || data?.label || '-'}</TableCell>
                         <TableCell sx={{ fontSize: "13px", fontFamily: "monospace", py: 1 }}>{objectKey}</TableCell>
                         <TableCell sx={{ py: 1 }}>
                           <Chip

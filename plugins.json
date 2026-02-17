@@ -354,43 +354,8 @@
             "renderType": "card"
           },
           {
-            "slotId": "page.usecase.overview",
-            "componentName": "JiraUseCaseOverview",
-            "renderType": "raw"
-          },
-          {
-            "slotId": "page.usecase.risks",
-            "componentName": "JiraUseCaseRisks",
-            "renderType": "raw"
-          },
-          {
-            "slotId": "page.usecase.models",
-            "componentName": "JiraUseCaseModels",
-            "renderType": "raw"
-          },
-          {
             "slotId": "page.usecase.frameworks",
             "componentName": "JiraUseCaseFrameworks",
-            "renderType": "raw"
-          },
-          {
-            "slotId": "page.usecase.ce-marking",
-            "componentName": "JiraUseCaseCeMarking",
-            "renderType": "raw"
-          },
-          {
-            "slotId": "page.usecase.activity",
-            "componentName": "JiraUseCaseActivity",
-            "renderType": "raw"
-          },
-          {
-            "slotId": "page.usecase.monitoring",
-            "componentName": "JiraUseCaseMonitoring",
-            "renderType": "raw"
-          },
-          {
-            "slotId": "page.usecase.settings",
-            "componentName": "JiraUseCaseSettings",
             "renderType": "raw"
           }
         ]
