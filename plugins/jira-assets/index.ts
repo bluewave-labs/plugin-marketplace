@@ -1139,6 +1139,8 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
   const { configuration, params, sequelize, tenantId } = ctx;
   const objectTypeId = params.objectTypeId;
 
+  console.log("[JiraAssets] handleGetObjects called for objectTypeId:", objectTypeId);
+
   // Load config from database if not in context
   let config = configuration;
   if (!config?.jira_base_url || !config?.workspace_id) {
@@ -1162,6 +1164,7 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
     );
 
     const objects = await client.getObjects(objectTypeId);
+    console.log("[JiraAssets] Fetched", objects.length, "objects from JIRA");
 
     // Transform objects for UI
     const transformed = objects.map((obj) => ({
@@ -1173,6 +1176,7 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
       updated: obj.updated,
     }));
 
+    console.log("[JiraAssets] Returning", transformed.length, "transformed objects");
     return { status: 200, data: transformed };
   } catch (error: any) {
     return { status: 500, data: { error: error.message } };
@@ -1185,11 +1189,16 @@ async function handleGetObjects(ctx: PluginRouteContext): Promise<PluginRouteRes
 async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
   const { sequelize, tenantId, body, configuration } = ctx;
 
+  console.log("[JiraAssets] handleImportObjects called with body:", JSON.stringify(body, null, 2));
+
   const { object_ids } = body;
 
   if (!object_ids || !Array.isArray(object_ids) || object_ids.length === 0) {
+    console.log("[JiraAssets] No objects selected for import");
     return { status: 400, data: { error: "No objects selected for import" } };
   }
+
+  console.log("[JiraAssets] Importing", object_ids.length, "objects");
 
   // Load config from database if not in context
   let config = configuration;
