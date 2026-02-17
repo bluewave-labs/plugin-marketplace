@@ -631,9 +631,10 @@ async function syncObjects(
 
     // Process each JIRA object
     for (const jiraObj of jiraObjects) {
-      const existing = existingMap.get(jiraObj.id);
+      const jiraObjectId = String(jiraObj.id);
+      const existing = existingMap.get(jiraObjectId);
 
-      console.log("[JiraAssets] Processing object:", jiraObj.id, jiraObj.objectKey || jiraObj.label);
+      console.log("[JiraAssets] Processing object:", jiraObjectId, jiraObj.objectKey || jiraObj.label);
       const rawAttrsStr = JSON.stringify(jiraObj.attributes || [], null, 2);
       console.log("[JiraAssets] Raw attributes from JIRA:", rawAttrsStr ? rawAttrsStr.substring(0, 2000) : 'none');
 
@@ -662,7 +663,7 @@ async function syncObjects(
            VALUES (:jiraObjectId, :ucId, :data, :lastSyncedAt, 'synced')`,
           {
             replacements: {
-              jiraObjectId: jiraObj.id,
+              jiraObjectId,
               ucId,
               data: JSON.stringify(data),
               lastSyncedAt: now,
@@ -681,13 +682,13 @@ async function syncObjects(
             replacements: {
               data: JSON.stringify(data),
               lastSyncedAt: now,
-              jiraObjectId: jiraObj.id,
+              jiraObjectId,
             },
           }
         );
         objectsUpdated++;
       }
-      existingMap.delete(jiraObj.id);
+      existingMap.delete(jiraObjectId);
     }
 
     // Delete objects that no longer exist in JIRA (those remaining in existingMap)
@@ -1342,6 +1343,7 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
 
         // Fetch object from JIRA
         const jiraObj = await client.getObjectById(objectId);
+        const jiraObjectId = String(jiraObj.id);
         const ucId = await generateUcId(tenantId, sequelize);
 
         // Store entire JIRA object in data column
@@ -1362,7 +1364,7 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
            VALUES (:jiraObjectId, :ucId, :data, :lastSyncedAt, 'synced')`,
           {
             replacements: {
-              jiraObjectId: jiraObj.id,
+              jiraObjectId,
               ucId,
               data: JSON.stringify(data),
               lastSyncedAt: now,
