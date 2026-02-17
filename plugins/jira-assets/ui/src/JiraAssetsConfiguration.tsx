@@ -153,6 +153,8 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
   // Imported use cases state
   const [importedUseCases, setImportedUseCases] = useState<ImportedUseCase[]>([]);
   const [isLoadingUseCases, setIsLoadingUseCases] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Load config from plugin's own endpoint on mount (only once)
   useEffect(() => {
@@ -281,6 +283,31 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
       setImportMessage({ type: "error", text: error.message || "Import failed" });
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  // Sync now - fetch latest data from JIRA
+  const handleSyncNow = async () => {
+    if (!hasApiAccess) return;
+
+    setIsSyncing(true);
+    setSyncMessage(null);
+    try {
+      const response = await pluginApiCall("POST", "/sync");
+      if (response?.success) {
+        setSyncMessage({
+          type: "success",
+          text: `Sync completed: ${response.created || 0} created, ${response.updated || 0} updated, ${response.deleted || 0} deleted`,
+        });
+        // Reload the imported use cases to show updated data
+        await loadImportedUseCases();
+      } else {
+        setSyncMessage({ type: "error", text: response?.error || "Sync failed" });
+      }
+    } catch (error: any) {
+      setSyncMessage({ type: "error", text: error.message || "Sync failed" });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -774,13 +801,14 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
               variant="outlined"
               startIcon={isLoadingObjects ? <CircularProgress size={16} /> : <Download size={16} />}
               onClick={loadJiraObjects}
-              disabled={isLoadingObjects}
+              disabled={isLoadingObjects || importedUseCases.length > 0}
               sx={{
                 borderColor: "#13715B",
                 color: "#13715B",
                 textTransform: "none",
                 fontSize: "13px",
                 "&:hover": { borderColor: "#0f5a47", backgroundColor: "rgba(19, 113, 91, 0.04)" },
+                "&:disabled": { borderColor: "#d0d5dd", color: "#98a2b3" },
               }}
             >
               {isLoadingObjects ? "Loading..." : "Fetch Objects from JIRA"}
@@ -871,16 +899,40 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
             <Typography variant="subtitle2" fontWeight={600} sx={{ color: "#344054" }}>
               Imported Use Cases ({importedUseCases.length})
             </Typography>
-            <Button
-              variant="text"
-              startIcon={<RefreshCw size={14} />}
-              onClick={loadImportedUseCases}
-              disabled={isLoadingUseCases}
-              sx={{ textTransform: "none", fontSize: "12px", color: "#667085" }}
-            >
-              Refresh
-            </Button>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={isSyncing ? <CircularProgress size={14} sx={{ color: "white" }} /> : <RefreshCw size={14} />}
+                onClick={handleSyncNow}
+                disabled={isSyncing || isLoadingUseCases}
+                sx={{
+                  backgroundColor: "#13715B",
+                  textTransform: "none",
+                  fontSize: "12px",
+                  "&:hover": { backgroundColor: "#0f5a47" },
+                  "&:disabled": { backgroundColor: "#d0d5dd" },
+                }}
+              >
+                {isSyncing ? "Syncing..." : "Sync Now"}
+              </Button>
+              <Button
+                variant="text"
+                startIcon={<RefreshCw size={14} />}
+                onClick={loadImportedUseCases}
+                disabled={isLoadingUseCases || isSyncing}
+                sx={{ textTransform: "none", fontSize: "12px", color: "#667085" }}
+              >
+                Refresh List
+              </Button>
+            </Box>
           </Box>
+
+          {/* Sync Message */}
+          {syncMessage && (
+            <Alert severity={syncMessage.type} sx={{ mb: 2, fontSize: "13px" }} onClose={() => setSyncMessage(null)}>
+              {syncMessage.text}
+            </Alert>
+          )}
 
           {isLoadingUseCases ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>

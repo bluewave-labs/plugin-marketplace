@@ -276,21 +276,25 @@ class JiraAssetsClient {
       );
       return result.objectEntries || [];
     } else {
-      // Cloud - use object listing endpoint with POST
+      // Cloud - use AQL endpoint which properly supports includeAttributes
       const result = await this.request<any>(
-        `objecttype/${objectTypeId}/objects`,
+        `object/aql`,
         "POST",
         {
-          resultsPerPage: maxResults,
+          qlQuery: `objectTypeId = ${objectTypeId}`,
+          resultPerPage: maxResults,
           includeAttributes: true,
+          includeAttributeValues: true,
         }
       );
-      console.log("[JiraAssets] Objects response:", JSON.stringify(result, null, 2).substring(0, 1000));
-      // API returns { values: [...] } or { entries: [...] } or array directly
-      const objects = Array.isArray(result) ? result : (result?.values || result?.entries || result?.objects || []);
+      const resultStr = JSON.stringify(result, null, 2);
+      console.log("[JiraAssets] AQL Objects response:", resultStr ? resultStr.substring(0, 1500) : 'null');
+      // AQL returns { values: [...] } or { objectEntries: [...] }
+      const objects = result?.values || result?.objectEntries || [];
       console.log("[JiraAssets] Found", objects.length, "objects");
       if (objects.length > 0) {
-        console.log("[JiraAssets] First object structure:", JSON.stringify(objects[0], null, 2).substring(0, 500));
+        const firstObjStr = JSON.stringify(objects[0], null, 2);
+        console.log("[JiraAssets] First object structure:", firstObjStr ? firstObjStr.substring(0, 1500) : 'null');
       }
       return objects;
     }
@@ -619,13 +623,21 @@ async function syncObjects(
     for (const jiraObj of jiraObjects) {
       const existing = existingMap.get(jiraObj.id);
 
+      console.log("[JiraAssets] Processing object:", jiraObj.id, jiraObj.objectKey || jiraObj.label);
+      const rawAttrsStr = JSON.stringify(jiraObj.attributes || [], null, 2);
+      console.log("[JiraAssets] Raw attributes from JIRA:", rawAttrsStr ? rawAttrsStr.substring(0, 2000) : 'none');
+
       // Build data object to store
+      const transformedAttrs = transformAttributes(jiraObj.attributes || []);
+      const transformedStr = JSON.stringify(transformedAttrs, null, 2);
+      console.log("[JiraAssets] Transformed attributes:", transformedStr ? transformedStr.substring(0, 1000) : 'none');
+
       const data = {
         id: jiraObj.id,
         objectKey: jiraObj.objectKey,
         label: jiraObj.label,
         objectType: jiraObj.objectType,
-        attributes: transformAttributes(jiraObj.attributes),
+        attributes: transformedAttrs,
         created: jiraObj.created,
         updated: jiraObj.updated,
       };
@@ -667,12 +679,11 @@ async function syncObjects(
       existingMap.delete(jiraObj.id);
     }
 
-    // Mark deleted objects (those remaining in existingMap)
+    // Delete objects that no longer exist in JIRA (those remaining in existingMap)
     const remainingIds = Array.from(existingMap.keys());
     for (const jiraObjectId of remainingIds) {
       await sequelize.query(
-        `UPDATE "${tenantId}".jira_assets_use_cases
-         SET sync_status = 'deleted_in_jira', updated_at = CURRENT_TIMESTAMP
+        `DELETE FROM "${tenantId}".jira_assets_use_cases
          WHERE jira_object_id = :jiraObjectId`,
         { replacements: { jiraObjectId } }
       );
