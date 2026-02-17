@@ -276,16 +276,17 @@ class JiraAssetsClient {
       );
       return result.objectEntries || [];
     } else {
-      // Cloud uses AQL endpoint
+      // Cloud uses AQL endpoint - use objectTypeId (numeric ID), not objectType (name)
       const result = await this.request<{ values: JiraObject[] }>(
         `object/aql`,
         "POST",
         {
-          qlQuery: `objectType = "${objectTypeId}"`,
+          qlQuery: `objectTypeId = ${objectTypeId}`,
           maxResults,
           includeAttributes: true,
         }
       );
+      console.log("[JiraAssets] AQL query result:", JSON.stringify(result, null, 2).substring(0, 500));
       return result.values || [];
     }
   }
