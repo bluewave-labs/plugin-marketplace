@@ -7,3 +7,5 @@
 
 export { JiraAssetsConfiguration } from "./JiraAssetsConfiguration";
 export { JiraAssetsUseCasesTab } from "./JiraAssetsUseCasesTab";
+export { JiraUseCaseOverview } from "./JiraUseCaseOverview";
+export { JiraUseCaseSettings } from "./JiraUseCaseSettings";

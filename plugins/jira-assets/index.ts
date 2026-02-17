@@ -841,26 +841,29 @@ export const dataProviders = {
           { type: "SELECT" }
         );
 
-        // Transform to match Project interface
+        // Transform to match Project interface (with JIRA-specific handling)
         return useCases.map((uc) => {
           const data = typeof uc.data === 'string' ? JSON.parse(uc.data) : uc.data;
           const name = data?.label || data?.attributes?.Name || uc.uc_id;
           const objectKey = data?.objectKey || '';
 
           return {
-            id: `jira-${uc.id}`, // Prefix to distinguish from native projects
+            id: `jira-assets-${uc.id}`, // Prefix with plugin key for frontend parsing
             project_title: name,
             uc_id: uc.uc_id,
             jira_object_key: objectKey,
             owner: null,
             users: [],
             start_date: data?.created || uc.created_at,
-            ai_risk_classification: "not_piia", // Default - JIRA objects don't have this
+            // JIRA items don't have VW-specific fields - frontend handles null gracefully
+            ai_risk_classification: null,
             type_of_high_risk_role: null,
             goal: data?.attributes?.Description || data?.attributes?.Purpose || "",
             last_updated: data?.updated || uc.updated_at,
             last_updated_by: null,
             is_organizational: false,
+            framework: [],
+            members: [],
             // Mark as JIRA-sourced for frontend to handle differently
             _source: "jira-assets",
             _jira_data: data,
@@ -1457,6 +1460,7 @@ async function handleGetUseCases(ctx: PluginRouteContext): Promise<PluginRouteRe
 
 /**
  * GET /use-cases/:id - Get a specific use case
+ * Returns data formatted for the frontend ProjectView
  */
 async function handleGetUseCase(ctx: PluginRouteContext): Promise<PluginRouteResponse> {
   const { sequelize, tenantId, params } = ctx;
@@ -1472,7 +1476,31 @@ async function handleGetUseCase(ctx: PluginRouteContext): Promise<PluginRouteRes
       return { status: 404, data: { error: "Use case not found" } };
     }
 
-    return { status: 200, data: useCases[0] };
+    const uc = useCases[0];
+    const data = typeof uc.data === 'string' ? JSON.parse(uc.data) : uc.data;
+
+    // Transform to match Project interface expected by frontend
+    const transformedUseCase = {
+      id: uc.id,
+      uc_id: uc.uc_id,
+      project_title: data?.label || data?.attributes?.Name || uc.uc_id,
+      owner: null,
+      members: [],
+      start_date: data?.created || uc.created_at,
+      ai_risk_classification: null,
+      type_of_high_risk_role: null,
+      goal: data?.attributes?.Description || data?.attributes?.Purpose || "",
+      last_updated: data?.updated || uc.updated_at,
+      last_updated_by: null,
+      framework: [],
+      monitored_regulations_and_standards: [],
+      // Plugin-specific fields
+      _source: "jira-assets",
+      _jira_data: data,
+      _sync_status: uc.sync_status,
+    };
+
+    return { status: 200, data: transformedUseCase };
   } catch (error: any) {
     return { status: 500, data: { error: error.message } };
   }

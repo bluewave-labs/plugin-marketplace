@@ -354,13 +354,14 @@
             "renderType": "card"
           },
           {
-            "slotId": "page.usecases.tabs",
-            "componentName": "JiraAssetsUseCasesTab",
-            "renderType": "tab",
-            "props": {
-              "label": "JIRA AI Systems",
-              "icon": "Database"
-            }
+            "slotId": "page.usecase.overview",
+            "componentName": "JiraUseCaseOverview",
+            "renderType": "raw"
+          },
+          {
+            "slotId": "page.usecase.settings",
+            "componentName": "JiraUseCaseSettings",
+            "renderType": "raw"
           }
         ]
       }
