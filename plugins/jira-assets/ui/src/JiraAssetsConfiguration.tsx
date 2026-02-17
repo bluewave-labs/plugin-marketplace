@@ -295,7 +295,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
       if (response?.success) {
         setSyncMessage({
           type: "success",
-          text: `Sync completed: ${response.created || 0} created, ${response.updated || 0} updated, ${response.deleted || 0} deleted`,
+          text: `Sync completed: ${response.objectsCreated || 0} created, ${response.objectsUpdated || 0} updated, ${response.objectsDeleted || 0} deleted`,
         });
         // Reload the imported use cases to show updated data
         await loadImportedUseCases();
