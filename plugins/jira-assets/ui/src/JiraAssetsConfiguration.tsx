@@ -52,6 +52,7 @@ interface ImportedUseCase {
   project_id: number;
   jira_object_id: string;
   uc_id: string;
+  name?: string;
   data: any;
   last_synced_at: string;
   sync_status: string;
@@ -300,6 +301,12 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
         });
         // Reload the imported use cases to show updated data
         await loadImportedUseCases();
+        // Update last_sync_at in local config
+        setLocalConfig((prev) => ({
+          ...prev,
+          last_sync_at: new Date().toISOString(),
+          last_sync_status: "success",
+        }));
       } else {
         setSyncMessage({ type: "error", text: response?.error || "Sync failed" });
       }
@@ -510,11 +517,16 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
             value={localConfig.workspace_id || ""}
             onChange={(e) => handleChange("workspace_id", e.target.value)}
             size="small"
-            helperText={localConfig.deployment_type === "datacenter"
-              ? "For Data Center: Use object schema ID from Insight settings"
-              : "Found in Assets settings or the URL when viewing Assets"}
+            // helperText={localConfig.deployment_type === "datacenter"
+            //   ? "For Data Center: Use object schema ID from Insight settings"
+            //   : "Found in Assets settings or the URL when viewing Assets"}
             sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
           />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+            {localConfig.deployment_type === "datacenter"
+              ? "For Data Center: Use object schema ID from Insight settings"
+              : "Found in Assets settings or the URL when viewing Assets"}
+          </Typography>
         </Box>
 
         <Box>
@@ -549,15 +561,24 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
             value={localConfig.api_token || ""}
             onChange={(e) => handleChange("api_token", e.target.value)}
             size="small"
-            helperText={
+            // helperText={
+            //   localConfig.has_api_token && !localConfig.api_token
+            //     ? "API token is saved. Leave empty to keep current token, or enter a new value to update."
+            //     : localConfig.deployment_type === "datacenter"
+            //       ? "Use your JIRA password or personal access token"
+            //       : "Generate at id.atlassian.com/manage-profile/security/api-tokens"
+            // }
+            sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+            {
               localConfig.has_api_token && !localConfig.api_token
                 ? "API token is saved. Leave empty to keep current token, or enter a new value to update."
                 : localConfig.deployment_type === "datacenter"
                   ? "Use your JIRA password or personal access token"
                   : "Generate at id.atlassian.com/manage-profile/security/api-tokens"
             }
-            sx={{ "& .MuiOutlinedInput-root": { fontSize: "13px", backgroundColor: "white" } }}
-          />
+          </Typography>
         </Box>
       </Stack>
 
@@ -573,8 +594,17 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
         </Box>
       )}
 
-      {/* Test Connection Button */}
-      <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+      {/* Save Message */}
+      {saveMessage && (
+        <Box sx={{ mt: 2 }}>
+          <Alert severity={saveMessage.type} sx={{ fontSize: "13px" }} onClose={() => setSaveMessage(null)}>
+            {saveMessage.text}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Test Connection & Save Configuration Buttons - Side by Side */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
         <Button
           variant="outlined"
           onClick={handleTestConnection}
@@ -603,6 +633,28 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
             </>
           ) : (
             "Test Connection"
+          )}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSaveConfig}
+          disabled={isSaving || !localConfig.jira_base_url || !localConfig.workspace_id || !localConfig.email || (!localConfig.api_token && !localConfig.has_api_token)}
+          sx={{
+            backgroundColor: "#13715B",
+            textTransform: "none",
+            fontSize: "13px",
+            fontWeight: 500,
+            "&:hover": { backgroundColor: "#0f5a47" },
+            "&:disabled": { backgroundColor: "#d0d5dd" },
+          }}
+        >
+          {isSaving ? (
+            <>
+              <CircularProgress size={16} sx={{ mr: 1, color: "white" }} />
+              Saving...
+            </>
+          ) : (
+            "Save Configuration"
           )}
         </Button>
       </Box>
@@ -730,78 +782,72 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
         </Box>
       )}
 
-      {/* Save Message */}
-      {saveMessage && (
-        <Box sx={{ mt: 2 }}>
-          <Alert severity={saveMessage.type} sx={{ fontSize: "13px" }} onClose={() => setSaveMessage(null)}>
-            {saveMessage.text}
-          </Alert>
-        </Box>
-      )}
-
-      {/* Save Button */}
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
-        <Button
-          variant="contained"
-          onClick={handleSaveConfig}
-          disabled={isSaving || !localConfig.jira_base_url || !localConfig.workspace_id || !localConfig.email || (!localConfig.api_token && !localConfig.has_api_token)}
-          sx={{
-            backgroundColor: "#13715B",
-            textTransform: "none",
-            fontSize: "13px",
-            fontWeight: 500,
-            "&:hover": { backgroundColor: "#0f5a47" },
-            "&:disabled": { backgroundColor: "#d0d5dd" },
-          }}
-        >
-          {isSaving ? (
-            <>
-              <CircularProgress size={16} sx={{ mr: 1, color: "white" }} />
-              Saving...
-            </>
-          ) : (
-            "Save Configuration"
-          )}
-        </Button>
-      </Box>
-
-      {/* Only show import section if config is saved and object type is selected */}
+      {/* Import Section - Only show if config is saved and object type is selected */}
       {localConfig.has_api_token && localConfig.selected_object_type_id && (
         <>
           <Divider sx={{ my: 3 }} />
 
-          {/* Step 4: Import Objects */}
-          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2, color: "#344054" }}>
-            Step 4: Import JIRA Objects
-          </Typography>
-
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={isLoadingObjects ? <CircularProgress size={16} /> : <Download size={16} />}
-              onClick={loadJiraObjects}
-              disabled={isLoadingObjects || importedUseCases.length > 0}
-              sx={{
-                borderColor: "#13715B",
-                color: "#13715B",
-                textTransform: "none",
-                fontSize: "13px",
-                "&:hover": { borderColor: "#0f5a47", backgroundColor: "rgba(19, 113, 91, 0.04)" },
-                "&:disabled": { borderColor: "#d0d5dd", color: "#98a2b3" },
-              }}
-            >
-              {isLoadingObjects ? "Loading..." : "Fetch Objects from JIRA"}
-            </Button>
+          {/* Import & Sync */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ color: "#344054" }}>
+                Import & Sync
+              </Typography>
+              <Typography variant="body2" fontSize={12} color="text.secondary">
+                {importedUseCases.length} use cases imported
+                {localConfig.last_sync_at && ` • Last sync: ${new Date(localConfig.last_sync_at).toLocaleString()}`}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={isSyncing ? <CircularProgress size={14} /> : <RefreshCw size={14} />}
+                onClick={handleSyncNow}
+                disabled={isSyncing || importedUseCases.length === 0}
+                sx={{
+                  borderColor: "#13715B",
+                  color: "#13715B",
+                  textTransform: "none",
+                  fontSize: "13px",
+                  "&:hover": { borderColor: "#0f5a47", backgroundColor: "rgba(19, 113, 91, 0.04)" },
+                  "&:disabled": { borderColor: "#d0d5dd", color: "#98a2b3" },
+                }}
+              >
+                {isSyncing ? "Syncing..." : "Sync Now"}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={isImporting ? <CircularProgress size={14} sx={{ color: "white" }} /> : <Download size={14} />}
+                onClick={loadJiraObjects}
+                disabled={isImporting || isLoadingObjects}
+                sx={{
+                  backgroundColor: "#13715B",
+                  textTransform: "none",
+                  fontSize: "13px",
+                  "&:hover": { backgroundColor: "#0f5a47" },
+                  "&:disabled": { backgroundColor: "#d0d5dd" },
+                }}
+              >
+                {isLoadingObjects ? "Loading..." : "Import"}
+              </Button>
+            </Box>
           </Box>
 
+          {/* Import/Sync Messages */}
           {importMessage && (
-            <Alert severity={importMessage.type} sx={{ mb: 2, fontSize: "13px" }} onClose={() => setImportMessage(null)}>
+            <Alert severity={importMessage.type} sx={{ mt: 2, fontSize: "13px" }} onClose={() => setImportMessage(null)}>
               {importMessage.text}
             </Alert>
           )}
+          {syncMessage && (
+            <Alert severity={syncMessage.type} sx={{ mt: 2, fontSize: "13px" }} onClose={() => setSyncMessage(null)}>
+              {syncMessage.text}
+            </Alert>
+          )}
 
+          {/* JIRA Objects Selection Modal/Table - show when objects are loaded */}
           {jiraObjects.length > 0 && (
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mt: 2 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                 <FormControlLabel
                   control={
@@ -822,7 +868,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
                   variant="contained"
                   onClick={handleImport}
                   disabled={isImporting || selectedObjects.size === 0}
-                  startIcon={isImporting ? <CircularProgress size={16} /> : <Download size={16} />}
+                  startIcon={isImporting ? <CircularProgress size={14} sx={{ color: "white" }} /> : <Download size={14} />}
                   sx={{
                     backgroundColor: "#13715B",
                     textTransform: "none",
@@ -834,7 +880,7 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
                 </Button>
               </Box>
 
-              <TableContainer component={Paper} sx={{ maxHeight: 300, boxShadow: "none", border: "1px solid #e4e7ec" }}>
+              <TableContainer component={Paper} sx={{ maxHeight: 250, boxShadow: "none", border: "1px solid #e4e7ec" }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: "#f9fafb" }}>
@@ -865,96 +911,46 @@ export const JiraAssetsConfiguration: React.FC<JiraAssetsConfigurationProps> = (
             </Box>
           )}
 
-          {jiraObjects.length === 0 && !isLoadingObjects && (
-            <Alert severity="info" sx={{ mb: 3, fontSize: "13px" }}>
-              Click "Fetch Objects from JIRA" to load available objects for import.
-            </Alert>
-          )}
-
-          <Divider sx={{ my: 3 }} />
-
-          {/* Imported Use Cases */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-            <Typography variant="subtitle2" fontWeight={600} sx={{ color: "#344054" }}>
-              Imported Use Cases ({importedUseCases.length})
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={isSyncing ? <CircularProgress size={14} sx={{ color: "white" }} /> : <RefreshCw size={14} />}
-              onClick={handleSyncNow}
-              disabled={isSyncing || isLoadingUseCases}
-              sx={{
-                backgroundColor: "#13715B",
-                textTransform: "none",
-                fontSize: "12px",
-                "&:hover": { backgroundColor: "#0f5a47" },
-                "&:disabled": { backgroundColor: "#d0d5dd" },
-              }}
-            >
-              {isSyncing ? "Syncing..." : "Sync Now"}
-            </Button>
-          </Box>
-
-          {/* Sync Message */}
-          {syncMessage && (
-            <Alert severity={syncMessage.type} sx={{ mb: 2, fontSize: "13px" }} onClose={() => setSyncMessage(null)}>
-              {syncMessage.text}
-            </Alert>
-          )}
-
-          {isLoadingUseCases ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-              <CircularProgress size={24} />
+          {/* Imported Use Cases Table */}
+          {importedUseCases.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5, color: "#344054" }}>
+                Imported Use Cases
+              </Typography>
+              <TableContainer component={Paper} sx={{ maxHeight: 300, boxShadow: "none", border: "1px solid #e4e7ec" }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb" }}>UC-ID</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb" }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb" }}>JIRA Key</TableCell>
+                      <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb" }}>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {importedUseCases.map((uc) => {
+                      const data = typeof uc.data === 'string' ? JSON.parse(uc.data) : uc.data;
+                      const objectKey = data?.objectKey || '-';
+                      return (
+                        <TableRow key={uc.id} hover>
+                          <TableCell sx={{ fontSize: "13px", fontFamily: "monospace" }}>{uc.uc_id}</TableCell>
+                          <TableCell sx={{ fontSize: "13px" }}>{uc.name || data?.label || '-'}</TableCell>
+                          <TableCell sx={{ fontSize: "13px", fontFamily: "monospace" }}>{objectKey}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={uc.sync_status}
+                              size="small"
+                              color={uc.sync_status === "synced" ? "success" : uc.sync_status === "updated" ? "info" : "default"}
+                              sx={{ fontSize: "11px" }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Box>
-          ) : importedUseCases.length === 0 ? (
-            <Alert severity="info" sx={{ fontSize: "13px" }}>
-              No objects imported yet. Fetch objects from JIRA and import them above.
-            </Alert>
-          ) : (
-            <TableContainer component={Paper} sx={{ maxHeight: 400, boxShadow: "none", border: "1px solid #e4e7ec" }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb", py: 1 }}>UC-ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb", py: 1 }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb", py: 1 }}>JIRA Key</TableCell>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "12px", backgroundColor: "#f9fafb", py: 1 }}>Status</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {importedUseCases.map((uc) => {
-                    const data = typeof uc.data === 'string' ? JSON.parse(uc.data) : uc.data;
-                    const objectKey = data?.objectKey || '-';
-                    return (
-                      <TableRow key={uc.id} hover>
-                        <TableCell sx={{ fontSize: "13px", fontFamily: "monospace", py: 1 }}>{uc.uc_id}</TableCell>
-                        <TableCell
-                          sx={{
-                            fontSize: "13px",
-                            py: 1,
-                            cursor: "pointer",
-                            color: "#13715B",
-                            "&:hover": { textDecoration: "underline" }
-                          }}
-                          onClick={() => window.location.href = `/project-view?projectId=jira-assets-${uc.project_id}`}
-                        >
-                          {uc.name || data?.label || '-'}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px", fontFamily: "monospace", py: 1 }}>{objectKey}</TableCell>
-                        <TableCell sx={{ py: 1 }}>
-                          <Chip
-                            label={uc.sync_status}
-                            size="small"
-                            color={uc.sync_status === "synced" ? "success" : uc.sync_status === "updated" ? "info" : "default"}
-                            sx={{ fontSize: "11px" }}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
           )}
         </>
       )}

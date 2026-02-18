@@ -669,8 +669,8 @@ async function syncObjects(
         const ucId = await generateUcId(tenantId, sequelize);
         const projectResult: any[] = await sequelize.query(
           `INSERT INTO "${tenantId}".projects
-           (uc_id, project_title, owner, start_date, goal, geography, last_updated, created_at, _source)
-           VALUES (:ucId, :title, 1, :startDate, :goal, 1, :lastUpdated, :createdAt, 'jira-assets')
+           (uc_id, project_title, owner, start_date, goal, geography, last_updated, created_at, _source, is_organizational)
+           VALUES (:ucId, :title, 1, :startDate, :goal, 1, :lastUpdated, :createdAt, 'jira-assets', false)
            RETURNING id`,
           {
             replacements: {
@@ -1392,8 +1392,8 @@ async function handleImportObjects(ctx: PluginRouteContext): Promise<PluginRoute
         // Create native project entry with _source for plugin identification
         const projectResult: any[] = await sequelize.query(
           `INSERT INTO "${tenantId}".projects
-           (uc_id, project_title, owner, start_date, goal, geography, last_updated, created_at, _source)
-           VALUES (:ucId, :title, 1, :startDate, :goal, 1, :lastUpdated, :createdAt, 'jira-assets')
+           (uc_id, project_title, owner, start_date, goal, geography, last_updated, created_at, _source, is_organizational)
+           VALUES (:ucId, :title, 1, :startDate, :goal, 1, :lastUpdated, :createdAt, 'jira-assets', false)
            RETURNING id`,
           {
             replacements: {
@@ -1588,6 +1588,14 @@ async function handleGetUseCase(ctx: PluginRouteContext): Promise<PluginRouteRes
     );
     const nativeProject = projects[0] || {};
 
+    // Fetch assigned frameworks from junction table
+    const frameworkRows: any[] = await sequelize.query(
+      `SELECT pf.id, pf.framework_id, pf.id as project_framework_id
+       FROM "${tenantId}".projects_frameworks pf
+       WHERE pf.project_id = :projectId`,
+      { replacements: { projectId }, type: "SELECT" }
+    );
+
     // Transform to match Project interface expected by frontend
     // Use project_id (from projects table) as id so native APIs work
     const transformedUseCase = {
@@ -1602,7 +1610,8 @@ async function handleGetUseCase(ctx: PluginRouteContext): Promise<PluginRouteRes
       goal: nativeProject.goal || data?.attributes?.Description || data?.attributes?.Purpose || "",
       last_updated: nativeProject.last_updated || data?.updated || uc.updated_at,
       last_updated_by: nativeProject.last_updated_by || null,
-      framework: [],
+      is_organizational: nativeProject.is_organizational || false,
+      framework: frameworkRows,
       monitored_regulations_and_standards: [],
       // Plugin-specific fields
       _source: "jira-assets",
