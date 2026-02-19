@@ -3053,6 +3053,16 @@
             "slotId": "page.plugin.config",
             "componentName": "ModelLifecycleConfig",
             "renderType": "card"
+          },
+          {
+            "slotId": "table.model.row-actions",
+            "componentName": "ViewLifecycleMenuItem",
+            "renderType": "menuitem"
+          },
+          {
+            "slotId": "page.model-detail.lifecycle",
+            "componentName": "ModelLifecycleDetail",
+            "renderType": "raw"
           }
         ]
       }
