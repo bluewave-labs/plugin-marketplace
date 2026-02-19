@@ -124,7 +124,7 @@ function TextFieldRenderer({
     setSaving(true);
     try {
       await apiServices?.put(
-        `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
         { value_text: text || null }
       );
       savedRef.current = text;
@@ -184,7 +184,7 @@ function DocumentsFieldRenderer({
           );
           const fileId = (result.data as any)?.data?.id || (result.data as any)?.id;
           await apiServices.post(
-            `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/files`,
+            `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/files`,
             { fileId }
           );
         }
@@ -201,7 +201,7 @@ function DocumentsFieldRenderer({
     async (fileId: number) => {
       try {
         await apiServices?.delete(
-          `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/files/${fileId}`
+          `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/files/${fileId}`
         );
         onValueChanged?.();
       } catch { /* retry */ }
@@ -294,7 +294,7 @@ function PeopleFieldRenderer({
     try {
       const updated = [...currentPeople, { userId }];
       await apiServices?.put(
-        `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
         { value_json: updated }
       );
       setNewUserId("");
@@ -347,7 +347,7 @@ function ClassificationFieldRenderer({
       setSaving(true);
       try {
         await apiServices?.put(
-          `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
+          `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
           { value_json: { level } }
         );
         onValueChanged?.();
@@ -403,7 +403,7 @@ function ChecklistFieldRenderer({
       setSaving(true);
       try {
         await apiServices?.put(
-          `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
+          `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
           { value_json: updatedItems }
         );
         onValueChanged?.();
@@ -507,7 +507,7 @@ function ApprovalFieldRenderer({
       setSaving(true);
       try {
         await apiServices?.put(
-          `/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
+          `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
           { value_json: updated }
         );
         onValueChanged?.();

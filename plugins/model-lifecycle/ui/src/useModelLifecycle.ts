@@ -115,7 +115,7 @@ export function useModelLifecycle(
     setError(null);
     try {
       const response = await apiServices.get<{ data: LifecyclePhase[] }>(
-        `/model-lifecycle/models/${modelId}/lifecycle`
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle`
       );
       setPhases((response.data as any)?.data || response.data || []);
     } catch (err) {
@@ -154,7 +154,7 @@ export function useLifecycleProgress(
     setError(null);
     try {
       const response = await apiServices.get<{ data: LifecycleProgress }>(
-        `/model-lifecycle/models/${modelId}/lifecycle/progress`
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/progress`
       );
       setProgress((response.data as any)?.data || response.data || null);
     } catch (err) {
@@ -195,7 +195,7 @@ export function useLifecycleConfig(
     try {
       const query = includeInactive ? "?includeInactive=true" : "";
       const response = await apiServices.get<{ data: LifecyclePhase[] }>(
-        `/model-lifecycle/config${query}`
+        `/plugins/model-lifecycle/config${query}`
       );
       setPhases((response.data as any)?.data || response.data || []);
     } catch (err) {
