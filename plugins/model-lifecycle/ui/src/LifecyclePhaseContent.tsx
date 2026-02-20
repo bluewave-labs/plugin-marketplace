@@ -23,7 +23,7 @@ export default function LifecyclePhaseContent({
   onValueChanged,
   apiServices,
 }: LifecyclePhaseContentProps) {
-  const items = phase.items ?? [];
+  const items = Array.isArray(phase.items) ? phase.items : [];
 
   return (
     <Stack sx={{ flex: 1, overflowY: "auto", p: "24px", gap: "16px" }}>

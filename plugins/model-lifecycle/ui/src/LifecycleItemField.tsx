@@ -15,12 +15,10 @@ import {
   FormControlLabel,
   Radio,
   RadioGroup,
-  Select,
-  MenuItem,
   Chip,
   Button,
 } from "@mui/material";
-import { Trash2, Upload, FileText, Check, X, Plus } from "lucide-react";
+import { Trash2, Upload, FileText, Check, X } from "lucide-react";
 import { LifecycleItem, LifecycleValue } from "./useModelLifecycle";
 
 // ============================================================================
@@ -227,7 +225,7 @@ function DocumentsFieldRenderer({
   modelId: number; item: LifecycleItem; value: LifecycleValue | null | undefined;
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
-  const files = value?.files ?? [];
+  const files = Array.isArray(value?.files) ? value.files : [];
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -362,58 +360,32 @@ function DocumentsFieldRenderer({
 // People
 // ============================================================================
 
-interface User {
-  id: number;
-  name: string;
-  surname: string;
-  email: string;
-}
-
 function PeopleFieldRenderer({
   modelId, item, value, onValueChanged, apiServices,
 }: {
   modelId: number; item: LifecycleItem; value: LifecycleValue | null | undefined;
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
-  const currentPeople: { userId: number; userName?: string }[] = Array.isArray(value?.value_json)
-    ? (value.value_json as { userId: number; userName?: string }[])
+  const currentPeople: { userId: number }[] = Array.isArray(value?.value_json)
+    ? (value.value_json as { userId: number }[])
     : [];
-  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
+  const [newUserId, setNewUserId] = useState("");
   const [saving, setSaving] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-
-  // Fetch users on mount
-  React.useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await apiServices?.get<{ data: User[] }>("/users");
-        const usersData = (response?.data as any)?.data || response?.data || [];
-        setUsers(Array.isArray(usersData) ? usersData : []);
-      } catch { /* ignore */ } finally { setLoadingUsers(false); }
-    };
-    fetchUsers();
-  }, [apiServices]);
-
-  const getUserName = useCallback((userId: number) => {
-    const user = users.find(u => u.id === userId);
-    return user ? `${user.name} ${user.surname}` : `User #${userId}`;
-  }, [users]);
 
   const handleAdd = useCallback(async () => {
-    if (!selectedUserId || currentPeople.find((p) => p.userId === selectedUserId)) return;
+    const userId = parseInt(newUserId);
+    if (!userId || currentPeople.find((p) => p.userId === userId)) return;
     setSaving(true);
     try {
-      const userName = getUserName(selectedUserId);
-      const updated = [...currentPeople, { userId: selectedUserId, userName }];
+      const updated = [...currentPeople, { userId }];
       await apiServices?.put(
         `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
         { value_json: updated }
       );
-      setSelectedUserId("");
+      setNewUserId("");
       onValueChanged?.();
     } catch { /* retry */ } finally { setSaving(false); }
-  }, [selectedUserId, currentPeople, modelId, item.id, onValueChanged, apiServices, getUserName]);
+  }, [newUserId, currentPeople, modelId, item.id, onValueChanged, apiServices]);
 
   const handleRemove = useCallback(async (userId: number) => {
     setSaving(true);
@@ -427,8 +399,6 @@ function PeopleFieldRenderer({
     } catch { /* retry */ } finally { setSaving(false); }
   }, [currentPeople, modelId, item.id, onValueChanged, apiServices]);
 
-  const availableUsers = users.filter(u => !currentPeople.find(p => p.userId === u.id));
-
   return (
     <Stack sx={{ gap: "10px" }}>
       {currentPeople.length > 0 && (
@@ -436,7 +406,7 @@ function PeopleFieldRenderer({
           {currentPeople.map((p) => (
             <Chip
               key={p.userId}
-              label={p.userName || getUserName(p.userId)}
+              label={`User #${p.userId}`}
               size="small"
               variant="outlined"
               onDelete={() => handleRemove(p.userId)}
@@ -454,35 +424,19 @@ function PeopleFieldRenderer({
         </Stack>
       )}
       <Stack direction="row" sx={{ gap: "8px" }}>
-        <Select
-          value={selectedUserId}
-          onChange={(e) => setSelectedUserId(e.target.value as number)}
+        <TextField
+          placeholder="Enter user ID..."
           size="small"
-          displayEmpty
-          sx={{
-            flex: 1,
-            ...vwInputSx,
-            "& .MuiSelect-select": {
-              fontFamily: VW_TYPOGRAPHY.fontFamily,
-              fontSize: "13px",
-            },
-          }}
-          disabled={loadingUsers}
-        >
-          <MenuItem value="" disabled sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
-            {loadingUsers ? "Loading users..." : "Select a user..."}
-          </MenuItem>
-          {availableUsers.map((user) => (
-            <MenuItem key={user.id} value={user.id} sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
-              {user.name} {user.surname} ({user.email})
-            </MenuItem>
-          ))}
-        </Select>
+          value={newUserId}
+          onChange={(e) => setNewUserId(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          sx={{ flex: 1, ...vwInputSx }}
+        />
         <Button
           variant="outlined"
           size="small"
           onClick={handleAdd}
-          disabled={saving || !selectedUserId}
+          disabled={saving || !newUserId}
           sx={vwButtonOutlined}
         >
           Add
@@ -504,7 +458,7 @@ function ClassificationFieldRenderer({
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
   const config = item.config as { levels?: string[] };
-  const levels = config?.levels ?? [];
+  const levels = Array.isArray(config?.levels) ? config.levels : [];
   const currentValue = (value?.value_json as { level?: string })?.level ?? "";
   const [selected, setSelected] = useState(currentValue);
   const [saving, setSaving] = useState(false);
@@ -573,7 +527,8 @@ function ChecklistFieldRenderer({
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
   const config = item.config as { defaultItems?: string[] };
-  const defaultItems: ChecklistValue[] = (config?.defaultItems ?? []).map(
+  const configItems = Array.isArray(config?.defaultItems) ? config.defaultItems : [];
+  const defaultItems: ChecklistValue[] = configItems.map(
     (label) => ({ label, checked: false })
   );
   const savedItems: ChecklistValue[] = Array.isArray(value?.value_json)
@@ -684,7 +639,7 @@ function ChecklistFieldRenderer({
 // Approval
 // ============================================================================
 
-interface ApprovalValue { userId: number; userName?: string; status: "pending" | "approved" | "rejected"; date?: string; }
+interface ApprovalValue { userId: number; status: "pending" | "approved" | "rejected"; date?: string; }
 
 function ApprovalFieldRenderer({
   modelId, item, value, onValueChanged, apiServices,
@@ -697,26 +652,7 @@ function ApprovalFieldRenderer({
     : [];
   const [approvals, setApprovals] = useState<ApprovalValue[]>(currentApprovals);
   const [saving, setSaving] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
-  const [users, setUsers] = useState<User[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-
-  // Fetch users on mount
-  React.useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await apiServices?.get<{ data: User[] }>("/users");
-        const usersData = (response?.data as any)?.data || response?.data || [];
-        setUsers(Array.isArray(usersData) ? usersData : []);
-      } catch { /* ignore */ } finally { setLoadingUsers(false); }
-    };
-    fetchUsers();
-  }, [apiServices]);
-
-  const getUserName = useCallback((userId: number) => {
-    const user = users.find(u => u.id === userId);
-    return user ? `${user.name} ${user.surname}` : `User #${userId}`;
-  }, [users]);
+  const [newUserId, setNewUserId] = useState("");
 
   const saveApprovals = useCallback(
     async (updated: ApprovalValue[]) => {
@@ -746,16 +682,16 @@ function ApprovalFieldRenderer({
   );
 
   const addApprover = useCallback(() => {
-    if (!selectedUserId || approvals.find((a) => a.userId === selectedUserId)) return;
-    const userName = getUserName(selectedUserId);
+    const userId = parseInt(newUserId);
+    if (!userId || approvals.find((a) => a.userId === userId)) return;
     const updated: ApprovalValue[] = [
       ...approvals,
-      { userId: selectedUserId, userName, status: "pending" as const },
+      { userId, status: "pending" as const },
     ];
     setApprovals(updated);
-    setSelectedUserId("");
+    setNewUserId("");
     saveApprovals(updated);
-  }, [selectedUserId, approvals, saveApprovals, getUserName]);
+  }, [newUserId, approvals, saveApprovals]);
 
   const removeApprover = useCallback((userId: number) => {
     const updated = approvals.filter(a => a.userId !== userId);
@@ -778,8 +714,6 @@ function ApprovalFieldRenderer({
       default: return VW_COLORS.bgAccent;
     }
   };
-
-  const availableUsers = users.filter(u => !approvals.find(a => a.userId === u.id));
 
   return (
     <Stack sx={{ gap: "12px" }}>
@@ -804,7 +738,7 @@ function ApprovalFieldRenderer({
               color: VW_COLORS.textSecondary,
             }}
           >
-            {approval.userName || getUserName(approval.userId)}
+            User #{approval.userId}
           </Typography>
           <Chip
             label={approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
@@ -853,35 +787,19 @@ function ApprovalFieldRenderer({
         </Stack>
       ))}
       <Stack direction="row" sx={{ gap: "8px" }}>
-        <Select
-          value={selectedUserId}
-          onChange={(e) => setSelectedUserId(e.target.value as number)}
+        <TextField
+          placeholder="Enter approver user ID..."
           size="small"
-          displayEmpty
-          sx={{
-            flex: 1,
-            ...vwInputSx,
-            "& .MuiSelect-select": {
-              fontFamily: VW_TYPOGRAPHY.fontFamily,
-              fontSize: "13px",
-            },
-          }}
-          disabled={loadingUsers}
-        >
-          <MenuItem value="" disabled sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
-            {loadingUsers ? "Loading users..." : "Select an approver..."}
-          </MenuItem>
-          {availableUsers.map((user) => (
-            <MenuItem key={user.id} value={user.id} sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
-              {user.name} {user.surname} ({user.email})
-            </MenuItem>
-          ))}
-        </Select>
+          value={newUserId}
+          onChange={(e) => setNewUserId(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addApprover()}
+          sx={{ flex: 1, ...vwInputSx }}
+        />
         <Button
           variant="outlined"
           size="small"
           onClick={addApprover}
-          disabled={saving || !selectedUserId}
+          disabled={saving || !newUserId}
           sx={vwButtonOutlined}
         >
           Add Approver

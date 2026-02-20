@@ -700,7 +700,7 @@ export default function ModelLifecycleConfig({ apiServices }: ModelLifecycleConf
 
                   <AccordionDetails sx={{ px: "16px", py: "12px", backgroundColor: VW_COLORS.bgMain }}>
                     <Stack spacing={0}>
-                      {(phase.items ?? []).map((item, itemIdx) => (
+                      {(Array.isArray(phase.items) ? phase.items : []).map((item, itemIdx) => (
                         <Stack
                           key={item.id}
                           direction="row"
