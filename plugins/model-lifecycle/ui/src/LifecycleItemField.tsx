@@ -1,6 +1,6 @@
 /**
  * LifecycleItemField - Renders the correct field UI based on item_type.
- * Self-contained version for plugin use — uses standard MUI components.
+ * Uses VerifyWise styling patterns.
  */
 
 import React, { useState, useCallback, useRef } from "react";
@@ -22,6 +22,70 @@ import {
 } from "@mui/material";
 import { Trash2, Upload, FileText, Check, X, Plus } from "lucide-react";
 import { LifecycleItem, LifecycleValue } from "./useModelLifecycle";
+
+// ============================================================================
+// VerifyWise Theme Constants
+// ============================================================================
+
+const VW_COLORS = {
+  primary: "#13715B",
+  primaryDark: "#10614d",
+  textPrimary: "#1c2130",
+  textSecondary: "#344054",
+  textTertiary: "#475467",
+  textAccent: "#838c99",
+  bgMain: "#FFFFFF",
+  bgAlt: "#FCFCFD",
+  bgFill: "#F4F4F4",
+  bgAccent: "#f9fafb",
+  borderLight: "#eaecf0",
+  borderDark: "#d0d5dd",
+  error: "#f04438",
+  errorBg: "#FEE2E2",
+  success: "#17b26a",
+  successBg: "#ecfdf3",
+};
+
+const VW_TYPOGRAPHY = {
+  fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+  fontSize: 13,
+};
+
+// Shared input styles
+const vwInputSx = {
+  "& .MuiInputBase-root": {
+    fontFamily: VW_TYPOGRAPHY.fontFamily,
+    fontSize: "13px",
+    borderRadius: "4px",
+  },
+  "& .MuiOutlinedInput-root": {
+    "& fieldset": { borderColor: VW_COLORS.borderDark },
+    "&:hover fieldset": { borderColor: VW_COLORS.primary },
+    "&.Mui-focused fieldset": { borderColor: VW_COLORS.primary },
+  },
+};
+
+const vwButtonOutlined = {
+  textTransform: "none" as const,
+  fontWeight: 500,
+  fontSize: "13px",
+  fontFamily: VW_TYPOGRAPHY.fontFamily,
+  borderRadius: "4px",
+  borderColor: VW_COLORS.borderDark,
+  color: VW_COLORS.textSecondary,
+  "&:hover": {
+    borderColor: VW_COLORS.primary,
+    color: VW_COLORS.primary,
+    backgroundColor: "rgba(19, 113, 91, 0.04)",
+  },
+};
+
+const vwChipSx = {
+  fontFamily: VW_TYPOGRAPHY.fontFamily,
+  fontSize: "12px",
+  fontWeight: 500,
+  borderRadius: "4px",
+};
 
 interface ApiServices {
   get: <T>(endpoint: string) => Promise<{ data: T }>;
@@ -145,8 +209,9 @@ function TextFieldRenderer({
       rows={multiline ? 3 : undefined}
       size="small"
       fullWidth
+      sx={vwInputSx}
       InputProps={{
-        endAdornment: saving ? <CircularProgress size={14} /> : undefined,
+        endAdornment: saving ? <CircularProgress size={14} sx={{ color: VW_COLORS.primary }} /> : undefined,
       }}
     />
   );
@@ -178,7 +243,7 @@ function DocumentsFieldRenderer({
           formData.append("file", file);
           formData.append("source", "File Manager");
           const result = await apiServices.post<{ data: { id: number } }>(
-            "/files/upload",
+            "/files",
             formData,
             { headers: { "Content-Type": "multipart/form-data" } }
           );
@@ -222,15 +287,27 @@ function DocumentsFieldRenderer({
                 gap: "10px",
                 p: "10px 12px",
                 borderRadius: "4px",
-                border: "1px solid #E0E4E9",
-                backgroundColor: "#F9FAFB",
+                border: `1px solid ${VW_COLORS.borderLight}`,
+                backgroundColor: VW_COLORS.bgAccent,
               }}
             >
-              <FileText size={16} color="#667085" />
-              <Typography variant="body2" sx={{ flex: 1 }}>
+              <FileText size={16} color={VW_COLORS.textAccent} />
+              <Typography
+                sx={{
+                  flex: 1,
+                  fontFamily: VW_TYPOGRAPHY.fontFamily,
+                  fontSize: "13px",
+                  color: VW_COLORS.textSecondary,
+                }}
+              >
                 {file.filename || `File #${file.file_id}`}
               </Typography>
-              <IconButton size="small" onClick={() => handleRemoveFile(file.file_id)} aria-label="Remove file">
+              <IconButton
+                size="small"
+                onClick={() => handleRemoveFile(file.file_id)}
+                aria-label="Remove file"
+                sx={{ color: VW_COLORS.textAccent, "&:hover": { color: VW_COLORS.error } }}
+              >
                 <Trash2 size={14} />
               </IconButton>
             </Stack>
@@ -239,21 +316,31 @@ function DocumentsFieldRenderer({
       )}
       <Box
         sx={{
-          border: "1px dashed #D0D5DD",
+          border: `1px dashed ${VW_COLORS.borderDark}`,
           borderRadius: "4px",
           p: "20px 16px",
           textAlign: "center",
           cursor: "pointer",
-          "&:hover": { backgroundColor: "#F9FAFB" },
+          transition: "all 0.15s ease",
+          "&:hover": {
+            backgroundColor: VW_COLORS.bgAccent,
+            borderColor: VW_COLORS.primary,
+          },
         }}
         onClick={() => fileInputRef.current?.click()}
       >
         {uploading ? (
-          <CircularProgress size={20} />
+          <CircularProgress size={20} sx={{ color: VW_COLORS.primary }} />
         ) : (
           <Stack direction="row" sx={{ gap: "8px", justifyContent: "center", alignItems: "center" }}>
-            <Upload size={16} color="#667085" />
-            <Typography variant="body2" color="text.secondary">
+            <Upload size={16} color={VW_COLORS.textAccent} />
+            <Typography
+              sx={{
+                fontFamily: VW_TYPOGRAPHY.fontFamily,
+                fontSize: "13px",
+                color: VW_COLORS.textTertiary,
+              }}
+            >
               Click to upload documents
             </Typography>
           </Stack>
@@ -275,52 +362,132 @@ function DocumentsFieldRenderer({
 // People
 // ============================================================================
 
+interface User {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+}
+
 function PeopleFieldRenderer({
   modelId, item, value, onValueChanged, apiServices,
 }: {
   modelId: number; item: LifecycleItem; value: LifecycleValue | null | undefined;
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
-  const currentPeople: { userId: number }[] = Array.isArray(value?.value_json)
-    ? (value.value_json as { userId: number }[])
+  const currentPeople: { userId: number; userName?: string }[] = Array.isArray(value?.value_json)
+    ? (value.value_json as { userId: number; userName?: string }[])
     : [];
-  const [newUserId, setNewUserId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
   const [saving, setSaving] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // Fetch users on mount
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiServices?.get<User[]>("/users");
+        setUsers(response?.data || []);
+      } catch { /* ignore */ } finally { setLoadingUsers(false); }
+    };
+    fetchUsers();
+  }, [apiServices]);
+
+  const getUserName = useCallback((userId: number) => {
+    const user = users.find(u => u.id === userId);
+    return user ? `${user.name} ${user.surname}` : `User #${userId}`;
+  }, [users]);
 
   const handleAdd = useCallback(async () => {
-    const userId = parseInt(newUserId);
-    if (!userId || currentPeople.find((p) => p.userId === userId)) return;
+    if (!selectedUserId || currentPeople.find((p) => p.userId === selectedUserId)) return;
     setSaving(true);
     try {
-      const updated = [...currentPeople, { userId }];
+      const userName = getUserName(selectedUserId);
+      const updated = [...currentPeople, { userId: selectedUserId, userName }];
       await apiServices?.put(
         `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
         { value_json: updated }
       );
-      setNewUserId("");
+      setSelectedUserId("");
       onValueChanged?.();
     } catch { /* retry */ } finally { setSaving(false); }
-  }, [newUserId, currentPeople, modelId, item.id, onValueChanged, apiServices]);
+  }, [selectedUserId, currentPeople, modelId, item.id, onValueChanged, apiServices, getUserName]);
+
+  const handleRemove = useCallback(async (userId: number) => {
+    setSaving(true);
+    try {
+      const updated = currentPeople.filter(p => p.userId !== userId);
+      await apiServices?.put(
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
+        { value_json: updated }
+      );
+      onValueChanged?.();
+    } catch { /* retry */ } finally { setSaving(false); }
+  }, [currentPeople, modelId, item.id, onValueChanged, apiServices]);
+
+  const availableUsers = users.filter(u => !currentPeople.find(p => p.userId === u.id));
 
   return (
-    <Stack sx={{ gap: "8px" }}>
-      {currentPeople.map((p) => (
-        <Chip key={p.userId} label={`User #${p.userId}`} size="small" variant="outlined" />
-      ))}
+    <Stack sx={{ gap: "10px" }}>
+      {currentPeople.length > 0 && (
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: "8px" }}>
+          {currentPeople.map((p) => (
+            <Chip
+              key={p.userId}
+              label={p.userName || getUserName(p.userId)}
+              size="small"
+              variant="outlined"
+              onDelete={() => handleRemove(p.userId)}
+              sx={{
+                ...vwChipSx,
+                borderColor: VW_COLORS.borderDark,
+                color: VW_COLORS.textSecondary,
+                "& .MuiChip-deleteIcon": {
+                  color: VW_COLORS.textAccent,
+                  "&:hover": { color: VW_COLORS.error },
+                },
+              }}
+            />
+          ))}
+        </Stack>
+      )}
       <Stack direction="row" sx={{ gap: "8px" }}>
-        <TextField
-          placeholder="Enter user ID..."
+        <Select
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value as number)}
           size="small"
-          value={newUserId}
-          onChange={(e) => setNewUserId(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          sx={{ flex: 1 }}
-        />
-        <Button variant="outlined" size="small" onClick={handleAdd} disabled={saving}>
+          displayEmpty
+          sx={{
+            flex: 1,
+            ...vwInputSx,
+            "& .MuiSelect-select": {
+              fontFamily: VW_TYPOGRAPHY.fontFamily,
+              fontSize: "13px",
+            },
+          }}
+          disabled={loadingUsers}
+        >
+          <MenuItem value="" disabled sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
+            {loadingUsers ? "Loading users..." : "Select a user..."}
+          </MenuItem>
+          {availableUsers.map((user) => (
+            <MenuItem key={user.id} value={user.id} sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
+              {user.name} {user.surname} ({user.email})
+            </MenuItem>
+          ))}
+        </Select>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleAdd}
+          disabled={saving || !selectedUserId}
+          sx={vwButtonOutlined}
+        >
           Add
         </Button>
       </Stack>
-      {saving && <CircularProgress size={14} />}
+      {saving && <CircularProgress size={14} sx={{ color: VW_COLORS.primary }} />}
     </Stack>
   );
 }
@@ -363,12 +530,31 @@ function ClassificationFieldRenderer({
           <FormControlLabel
             key={level}
             value={level}
-            control={<Radio size="small" />}
-            label={<Typography variant="body2">{level}</Typography>}
+            control={
+              <Radio
+                size="small"
+                sx={{
+                  color: VW_COLORS.borderDark,
+                  "&.Mui-checked": { color: VW_COLORS.primary },
+                }}
+              />
+            }
+            label={
+              <Typography
+                sx={{
+                  fontFamily: VW_TYPOGRAPHY.fontFamily,
+                  fontSize: "13px",
+                  color: VW_COLORS.textSecondary,
+                }}
+              >
+                {level}
+              </Typography>
+            }
+            sx={{ marginLeft: 0 }}
           />
         ))}
       </RadioGroup>
-      {saving && <CircularProgress size={14} />}
+      {saving && <CircularProgress size={14} sx={{ color: VW_COLORS.primary }} />}
     </Stack>
   );
 }
@@ -448,19 +634,29 @@ function ChecklistFieldRenderer({
             checked={it.checked}
             onChange={() => toggleItem(index)}
             size="small"
+            sx={{
+              color: VW_COLORS.borderDark,
+              "&.Mui-checked": { color: VW_COLORS.primary },
+              padding: "4px",
+            }}
           />
           <Typography
-            variant="body2"
             sx={{
               flex: 1,
+              fontFamily: VW_TYPOGRAPHY.fontFamily,
               fontSize: "13px",
               textDecoration: it.checked ? "line-through" : "none",
-              color: it.checked ? "#667085" : "#344054",
+              color: it.checked ? VW_COLORS.textAccent : VW_COLORS.textSecondary,
             }}
           >
             {it.label}
           </Typography>
-          <IconButton size="small" onClick={() => removeItem(index)} aria-label="Remove item">
+          <IconButton
+            size="small"
+            onClick={() => removeItem(index)}
+            aria-label="Remove item"
+            sx={{ color: VW_COLORS.textAccent, "&:hover": { color: VW_COLORS.error } }}
+          >
             <X size={14} />
           </IconButton>
         </Stack>
@@ -472,13 +668,13 @@ function ChecklistFieldRenderer({
           onChange={(e) => setNewItemText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addItem()}
           size="small"
-          sx={{ flex: 1 }}
+          sx={{ flex: 1, ...vwInputSx }}
         />
-        <Button variant="outlined" size="small" onClick={addItem}>
+        <Button variant="outlined" size="small" onClick={addItem} sx={vwButtonOutlined}>
           Add
         </Button>
       </Stack>
-      {saving && <CircularProgress size={14} />}
+      {saving && <CircularProgress size={14} sx={{ color: VW_COLORS.primary }} />}
     </Stack>
   );
 }
@@ -487,7 +683,7 @@ function ChecklistFieldRenderer({
 // Approval
 // ============================================================================
 
-interface ApprovalValue { userId: number; status: "pending" | "approved" | "rejected"; date?: string; }
+interface ApprovalValue { userId: number; userName?: string; status: "pending" | "approved" | "rejected"; date?: string; }
 
 function ApprovalFieldRenderer({
   modelId, item, value, onValueChanged, apiServices,
@@ -500,7 +696,25 @@ function ApprovalFieldRenderer({
     : [];
   const [approvals, setApprovals] = useState<ApprovalValue[]>(currentApprovals);
   const [saving, setSaving] = useState(false);
-  const [newUserId, setNewUserId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // Fetch users on mount
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiServices?.get<User[]>("/users");
+        setUsers(response?.data || []);
+      } catch { /* ignore */ } finally { setLoadingUsers(false); }
+    };
+    fetchUsers();
+  }, [apiServices]);
+
+  const getUserName = useCallback((userId: number) => {
+    const user = users.find(u => u.id === userId);
+    return user ? `${user.name} ${user.surname}` : `User #${userId}`;
+  }, [users]);
 
   const saveApprovals = useCallback(
     async (updated: ApprovalValue[]) => {
@@ -530,24 +744,40 @@ function ApprovalFieldRenderer({
   );
 
   const addApprover = useCallback(() => {
-    const userId = parseInt(newUserId);
-    if (!userId || approvals.find((a) => a.userId === userId)) return;
+    if (!selectedUserId || approvals.find((a) => a.userId === selectedUserId)) return;
+    const userName = getUserName(selectedUserId);
     const updated: ApprovalValue[] = [
       ...approvals,
-      { userId, status: "pending" as const },
+      { userId: selectedUserId, userName, status: "pending" as const },
     ];
     setApprovals(updated);
-    setNewUserId("");
+    setSelectedUserId("");
     saveApprovals(updated);
-  }, [newUserId, approvals, saveApprovals]);
+  }, [selectedUserId, approvals, saveApprovals, getUserName]);
+
+  const removeApprover = useCallback((userId: number) => {
+    const updated = approvals.filter(a => a.userId !== userId);
+    setApprovals(updated);
+    saveApprovals(updated);
+  }, [approvals, saveApprovals]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "approved": return "#079455";
-      case "rejected": return "#F04438";
-      default: return "#667085";
+      case "approved": return VW_COLORS.success;
+      case "rejected": return VW_COLORS.error;
+      default: return VW_COLORS.textAccent;
     }
   };
+
+  const getStatusBgColor = (status: string) => {
+    switch (status) {
+      case "approved": return VW_COLORS.successBg;
+      case "rejected": return VW_COLORS.errorBg;
+      default: return VW_COLORS.bgAccent;
+    }
+  };
+
+  const availableUsers = users.filter(u => !approvals.find(a => a.userId === u.id));
 
   return (
     <Stack sx={{ gap: "12px" }}>
@@ -560,24 +790,39 @@ function ApprovalFieldRenderer({
             gap: "10px",
             p: "12px 16px",
             borderRadius: "4px",
-            border: "1px solid #E0E4E9",
+            border: `1px solid ${VW_COLORS.borderLight}`,
+            backgroundColor: VW_COLORS.bgMain,
           }}
         >
-          <Typography variant="body2" sx={{ flex: 1 }}>
-            User #{approval.userId}
+          <Typography
+            sx={{
+              flex: 1,
+              fontFamily: VW_TYPOGRAPHY.fontFamily,
+              fontSize: "13px",
+              color: VW_COLORS.textSecondary,
+            }}
+          >
+            {approval.userName || getUserName(approval.userId)}
           </Typography>
           <Chip
-            label={approval.status}
+            label={approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
             size="small"
-            sx={{ color: getStatusColor(approval.status), borderColor: getStatusColor(approval.status) }}
-            variant="outlined"
+            sx={{
+              ...vwChipSx,
+              color: getStatusColor(approval.status),
+              backgroundColor: getStatusBgColor(approval.status),
+              border: "none",
+            }}
           />
           {approval.status === "pending" && (
             <>
               <IconButton
                 size="small"
                 onClick={() => handleStatusChange(approval.userId, "approved")}
-                sx={{ color: "#079455" }}
+                sx={{
+                  color: VW_COLORS.success,
+                  "&:hover": { backgroundColor: VW_COLORS.successBg },
+                }}
                 aria-label="Approve"
               >
                 <Check size={16} />
@@ -585,29 +830,62 @@ function ApprovalFieldRenderer({
               <IconButton
                 size="small"
                 onClick={() => handleStatusChange(approval.userId, "rejected")}
-                sx={{ color: "#F04438" }}
+                sx={{
+                  color: VW_COLORS.error,
+                  "&:hover": { backgroundColor: VW_COLORS.errorBg },
+                }}
                 aria-label="Reject"
               >
                 <X size={16} />
               </IconButton>
             </>
           )}
+          <IconButton
+            size="small"
+            onClick={() => removeApprover(approval.userId)}
+            sx={{ color: VW_COLORS.textAccent, "&:hover": { color: VW_COLORS.error } }}
+            aria-label="Remove approver"
+          >
+            <Trash2 size={14} />
+          </IconButton>
         </Stack>
       ))}
       <Stack direction="row" sx={{ gap: "8px" }}>
-        <TextField
-          placeholder="Enter approver user ID..."
+        <Select
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value as number)}
           size="small"
-          value={newUserId}
-          onChange={(e) => setNewUserId(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addApprover()}
-          sx={{ flex: 1 }}
-        />
-        <Button variant="outlined" size="small" onClick={addApprover} disabled={saving}>
+          displayEmpty
+          sx={{
+            flex: 1,
+            ...vwInputSx,
+            "& .MuiSelect-select": {
+              fontFamily: VW_TYPOGRAPHY.fontFamily,
+              fontSize: "13px",
+            },
+          }}
+          disabled={loadingUsers}
+        >
+          <MenuItem value="" disabled sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
+            {loadingUsers ? "Loading users..." : "Select an approver..."}
+          </MenuItem>
+          {availableUsers.map((user) => (
+            <MenuItem key={user.id} value={user.id} sx={{ fontFamily: VW_TYPOGRAPHY.fontFamily, fontSize: "13px" }}>
+              {user.name} {user.surname} ({user.email})
+            </MenuItem>
+          ))}
+        </Select>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={addApprover}
+          disabled={saving || !selectedUserId}
+          sx={vwButtonOutlined}
+        >
           Add Approver
         </Button>
       </Stack>
-      {saving && <CircularProgress size={14} />}
+      {saving && <CircularProgress size={14} sx={{ color: VW_COLORS.primary }} />}
     </Stack>
   );
 }
