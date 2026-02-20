@@ -3,7 +3,7 @@
  * Uses VerifyWise styling patterns.
  */
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   Stack,
   Typography,
@@ -17,9 +17,51 @@ import {
   RadioGroup,
   Chip,
   Button,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Trash2, Upload, FileText, Check, X } from "lucide-react";
 import { LifecycleItem, LifecycleValue } from "./useModelLifecycle";
+
+// User type for dropdown
+interface User {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+}
+
+// Custom hook for fetching users
+function useUsers(apiServices?: ApiServices) {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!apiServices) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchUsers = async () => {
+      try {
+        const response = await apiServices.get<any>("/users");
+        // Handle nested data structure: { message: "OK", data: [...] }
+        const data = response?.data;
+        const usersArray = data?.data || data || [];
+        setUsers(Array.isArray(usersArray) ? usersArray : []);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+        setUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [apiServices]);
+
+  return { users, loading };
+}
 
 // ============================================================================
 // VerifyWise Theme Constants
@@ -241,7 +283,7 @@ function DocumentsFieldRenderer({
           formData.append("file", file);
           formData.append("source", "File Manager");
           const result = await apiServices.post<{ data: { id: number } }>(
-            "/files",
+            "/file-manager",
             formData,
             { headers: { "Content-Type": "multipart/form-data" } }
           );
@@ -357,8 +399,16 @@ function DocumentsFieldRenderer({
 }
 
 // ============================================================================
-// People
+// People (uses junction table model_lifecycle_item_people)
 // ============================================================================
+
+interface PersonRecord {
+  id: number;
+  user_id: number;
+  name: string;
+  surname: string;
+  email: string;
+}
 
 function PeopleFieldRenderer({
   modelId, item, value, onValueChanged, apiServices,
@@ -366,38 +416,47 @@ function PeopleFieldRenderer({
   modelId: number; item: LifecycleItem; value: LifecycleValue | null | undefined;
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
-  const currentPeople: { userId: number }[] = Array.isArray(value?.value_json)
-    ? (value.value_json as { userId: number }[])
+  const { users, loading: usersLoading } = useUsers(apiServices);
+  // People now come from junction table, not value_json
+  const currentPeople: PersonRecord[] = Array.isArray((value as any)?.people)
+    ? (value as any).people
     : [];
-  const [newUserId, setNewUserId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
   const [saving, setSaving] = useState(false);
 
+  // Filter out already-added users from the dropdown
+  const availableUsers = users.filter(
+    (u) => !currentPeople.some((p) => p.user_id === u.id)
+  );
+
+  // Helper to get user display name
+  const getPersonDisplayName = (person: PersonRecord): string => {
+    const fullName = `${person.name || ""} ${person.surname || ""}`.trim();
+    return fullName || person.email || `User #${person.user_id}`;
+  };
+
   const handleAdd = useCallback(async () => {
-    const userId = parseInt(newUserId);
-    if (!userId || currentPeople.find((p) => p.userId === userId)) return;
+    if (!selectedUserId) return;
     setSaving(true);
     try {
-      const updated = [...currentPeople, { userId }];
-      await apiServices?.put(
-        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
-        { value_json: updated }
+      await apiServices?.post(
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/people`,
+        { userId: selectedUserId }
       );
-      setNewUserId("");
+      setSelectedUserId("");
       onValueChanged?.();
     } catch { /* retry */ } finally { setSaving(false); }
-  }, [newUserId, currentPeople, modelId, item.id, onValueChanged, apiServices]);
+  }, [selectedUserId, modelId, item.id, onValueChanged, apiServices]);
 
   const handleRemove = useCallback(async (userId: number) => {
     setSaving(true);
     try {
-      const updated = currentPeople.filter(p => p.userId !== userId);
-      await apiServices?.put(
-        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
-        { value_json: updated }
+      await apiServices?.delete(
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/people/${userId}`
       );
       onValueChanged?.();
     } catch { /* retry */ } finally { setSaving(false); }
-  }, [currentPeople, modelId, item.id, onValueChanged, apiServices]);
+  }, [modelId, item.id, onValueChanged, apiServices]);
 
   return (
     <Stack sx={{ gap: "10px" }}>
@@ -405,11 +464,11 @@ function PeopleFieldRenderer({
         <Stack direction="row" flexWrap="wrap" sx={{ gap: "8px" }}>
           {currentPeople.map((p) => (
             <Chip
-              key={p.userId}
-              label={`User #${p.userId}`}
+              key={p.user_id}
+              label={getPersonDisplayName(p)}
               size="small"
               variant="outlined"
-              onDelete={() => handleRemove(p.userId)}
+              onDelete={() => handleRemove(p.user_id)}
               sx={{
                 ...vwChipSx,
                 borderColor: VW_COLORS.borderDark,
@@ -424,19 +483,38 @@ function PeopleFieldRenderer({
         </Stack>
       )}
       <Stack direction="row" sx={{ gap: "8px" }}>
-        <TextField
-          placeholder="Enter user ID..."
+        <Select
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value as number | "")}
+          displayEmpty
           size="small"
-          value={newUserId}
-          onChange={(e) => setNewUserId(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          sx={{ flex: 1, ...vwInputSx }}
-        />
+          sx={{
+            flex: 1,
+            fontFamily: VW_TYPOGRAPHY.fontFamily,
+            fontSize: "13px",
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: VW_COLORS.borderDark },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: VW_COLORS.primary },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: VW_COLORS.primary },
+          }}
+        >
+          <MenuItem value="" disabled>
+            <Typography sx={{ color: VW_COLORS.textAccent, fontSize: "13px" }}>
+              {usersLoading ? "Loading users..." : "Select a user..."}
+            </Typography>
+          </MenuItem>
+          {availableUsers.map((user) => (
+            <MenuItem key={user.id} value={user.id}>
+              <Typography sx={{ fontSize: "13px", color: VW_COLORS.textSecondary }}>
+                {`${user.name} ${user.surname}`.trim() || user.email}
+              </Typography>
+            </MenuItem>
+          ))}
+        </Select>
         <Button
           variant="outlined"
           size="small"
           onClick={handleAdd}
-          disabled={saving || !newUserId}
+          disabled={saving || !selectedUserId}
           sx={vwButtonOutlined}
         >
           Add
@@ -636,10 +714,18 @@ function ChecklistFieldRenderer({
 }
 
 // ============================================================================
-// Approval
+// Approval (uses junction table model_lifecycle_item_approvals)
 // ============================================================================
 
-interface ApprovalValue { userId: number; status: "pending" | "approved" | "rejected"; date?: string; }
+interface ApprovalRecord {
+  id: number;
+  user_id: number;
+  status: "pending" | "approved" | "rejected";
+  decided_at: string | null;
+  name: string;
+  surname: string;
+  email: string;
+}
 
 function ApprovalFieldRenderer({
   modelId, item, value, onValueChanged, apiServices,
@@ -647,57 +733,61 @@ function ApprovalFieldRenderer({
   modelId: number; item: LifecycleItem; value: LifecycleValue | null | undefined;
   onValueChanged?: () => void; apiServices?: ApiServices;
 }) {
-  const currentApprovals: ApprovalValue[] = Array.isArray(value?.value_json)
-    ? (value.value_json as ApprovalValue[])
+  const { users, loading: usersLoading } = useUsers(apiServices);
+  // Approvals now come from junction table, not value_json
+  const currentApprovals: ApprovalRecord[] = Array.isArray((value as any)?.approvals)
+    ? (value as any).approvals
     : [];
-  const [approvals, setApprovals] = useState<ApprovalValue[]>(currentApprovals);
   const [saving, setSaving] = useState(false);
-  const [newUserId, setNewUserId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
 
-  const saveApprovals = useCallback(
-    async (updated: ApprovalValue[]) => {
+  // Filter out already-added approvers from the dropdown
+  const availableUsers = users.filter(
+    (u) => !currentApprovals.some((a) => a.user_id === u.id)
+  );
+
+  // Helper to get user display name
+  const getApproverDisplayName = (approval: ApprovalRecord): string => {
+    const fullName = `${approval.name || ""} ${approval.surname || ""}`.trim();
+    return fullName || approval.email || `User #${approval.user_id}`;
+  };
+
+  const handleStatusChange = useCallback(
+    async (userId: number, status: "approved" | "rejected") => {
       setSaving(true);
       try {
         await apiServices?.put(
-          `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}`,
-          { value_json: updated }
+          `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/approvals/${userId}`,
+          { status }
         );
         onValueChanged?.();
-      } catch { /* keep state */ } finally { setSaving(false); }
+      } catch { /* retry */ } finally { setSaving(false); }
     },
     [modelId, item.id, onValueChanged, apiServices]
   );
 
-  const handleStatusChange = useCallback(
-    (userId: number, status: "approved" | "rejected") => {
-      const updated = approvals.map((a) =>
-        a.userId === userId
-          ? { ...a, status, date: new Date().toISOString() }
-          : a
+  const addApprover = useCallback(async () => {
+    if (!selectedUserId) return;
+    setSaving(true);
+    try {
+      await apiServices?.post(
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/approvals`,
+        { userId: selectedUserId }
       );
-      setApprovals(updated);
-      saveApprovals(updated);
-    },
-    [approvals, saveApprovals]
-  );
+      setSelectedUserId("");
+      onValueChanged?.();
+    } catch { /* retry */ } finally { setSaving(false); }
+  }, [selectedUserId, modelId, item.id, onValueChanged, apiServices]);
 
-  const addApprover = useCallback(() => {
-    const userId = parseInt(newUserId);
-    if (!userId || approvals.find((a) => a.userId === userId)) return;
-    const updated: ApprovalValue[] = [
-      ...approvals,
-      { userId, status: "pending" as const },
-    ];
-    setApprovals(updated);
-    setNewUserId("");
-    saveApprovals(updated);
-  }, [newUserId, approvals, saveApprovals]);
-
-  const removeApprover = useCallback((userId: number) => {
-    const updated = approvals.filter(a => a.userId !== userId);
-    setApprovals(updated);
-    saveApprovals(updated);
-  }, [approvals, saveApprovals]);
+  const removeApprover = useCallback(async (userId: number) => {
+    setSaving(true);
+    try {
+      await apiServices?.delete(
+        `/plugins/model-lifecycle/models/${modelId}/lifecycle/items/${item.id}/approvals/${userId}`
+      );
+      onValueChanged?.();
+    } catch { /* retry */ } finally { setSaving(false); }
+  }, [modelId, item.id, onValueChanged, apiServices]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -717,9 +807,9 @@ function ApprovalFieldRenderer({
 
   return (
     <Stack sx={{ gap: "12px" }}>
-      {approvals.map((approval) => (
+      {currentApprovals.map((approval) => (
         <Stack
-          key={approval.userId}
+          key={approval.user_id}
           direction="row"
           alignItems="center"
           sx={{
@@ -738,7 +828,7 @@ function ApprovalFieldRenderer({
               color: VW_COLORS.textSecondary,
             }}
           >
-            User #{approval.userId}
+            {getApproverDisplayName(approval)}
           </Typography>
           <Chip
             label={approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
@@ -754,7 +844,7 @@ function ApprovalFieldRenderer({
             <>
               <IconButton
                 size="small"
-                onClick={() => handleStatusChange(approval.userId, "approved")}
+                onClick={() => handleStatusChange(approval.user_id, "approved")}
                 sx={{
                   color: VW_COLORS.success,
                   "&:hover": { backgroundColor: VW_COLORS.successBg },
@@ -765,7 +855,7 @@ function ApprovalFieldRenderer({
               </IconButton>
               <IconButton
                 size="small"
-                onClick={() => handleStatusChange(approval.userId, "rejected")}
+                onClick={() => handleStatusChange(approval.user_id, "rejected")}
                 sx={{
                   color: VW_COLORS.error,
                   "&:hover": { backgroundColor: VW_COLORS.errorBg },
@@ -778,7 +868,7 @@ function ApprovalFieldRenderer({
           )}
           <IconButton
             size="small"
-            onClick={() => removeApprover(approval.userId)}
+            onClick={() => removeApprover(approval.user_id)}
             sx={{ color: VW_COLORS.textAccent, "&:hover": { color: VW_COLORS.error } }}
             aria-label="Remove approver"
           >
@@ -787,19 +877,38 @@ function ApprovalFieldRenderer({
         </Stack>
       ))}
       <Stack direction="row" sx={{ gap: "8px" }}>
-        <TextField
-          placeholder="Enter approver user ID..."
+        <Select
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value as number | "")}
+          displayEmpty
           size="small"
-          value={newUserId}
-          onChange={(e) => setNewUserId(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addApprover()}
-          sx={{ flex: 1, ...vwInputSx }}
-        />
+          sx={{
+            flex: 1,
+            fontFamily: VW_TYPOGRAPHY.fontFamily,
+            fontSize: "13px",
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: VW_COLORS.borderDark },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: VW_COLORS.primary },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: VW_COLORS.primary },
+          }}
+        >
+          <MenuItem value="" disabled>
+            <Typography sx={{ color: VW_COLORS.textAccent, fontSize: "13px" }}>
+              {usersLoading ? "Loading users..." : "Select an approver..."}
+            </Typography>
+          </MenuItem>
+          {availableUsers.map((user) => (
+            <MenuItem key={user.id} value={user.id}>
+              <Typography sx={{ fontSize: "13px", color: VW_COLORS.textSecondary }}>
+                {`${user.name} ${user.surname}`.trim() || user.email}
+              </Typography>
+            </MenuItem>
+          ))}
+        </Select>
         <Button
           variant="outlined"
           size="small"
           onClick={addApprover}
-          disabled={saving || !newUserId}
+          disabled={saving || !selectedUserId}
           sx={vwButtonOutlined}
         >
           Add Approver
