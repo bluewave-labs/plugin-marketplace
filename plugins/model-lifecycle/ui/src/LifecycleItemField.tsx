@@ -387,8 +387,9 @@ function PeopleFieldRenderer({
   React.useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await apiServices?.get<User[]>("/users");
-        setUsers(response?.data || []);
+        const response = await apiServices?.get<{ data: User[] }>("/users");
+        const usersData = (response?.data as any)?.data || response?.data || [];
+        setUsers(Array.isArray(usersData) ? usersData : []);
       } catch { /* ignore */ } finally { setLoadingUsers(false); }
     };
     fetchUsers();
@@ -704,8 +705,9 @@ function ApprovalFieldRenderer({
   React.useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await apiServices?.get<User[]>("/users");
-        setUsers(response?.data || []);
+        const response = await apiServices?.get<{ data: User[] }>("/users");
+        const usersData = (response?.data as any)?.data || response?.data || [];
+        setUsers(Array.isArray(usersData) ? usersData : []);
       } catch { /* ignore */ } finally { setLoadingUsers(false); }
     };
     fetchUsers();
