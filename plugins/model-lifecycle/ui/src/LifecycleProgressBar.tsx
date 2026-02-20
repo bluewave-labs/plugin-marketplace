@@ -16,7 +16,8 @@ export default function LifecycleProgressBar({
   progress,
   onPhaseClick,
 }: LifecycleProgressBarProps) {
-  if (!progress || progress.phases.length === 0) {
+  const phases = Array.isArray(progress?.phases) ? progress.phases : [];
+  if (!progress || phases.length === 0) {
     return null;
   }
 
@@ -43,7 +44,7 @@ export default function LifecycleProgressBar({
       </Stack>
 
       <Stack direction="row" sx={{ gap: "6px", width: "100%" }}>
-        {progress.phases.map((phase) => {
+        {phases.map((phase) => {
           const pct = phase.total_items > 0
             ? (phase.filled_items / phase.total_items) * 100
             : 0;
@@ -84,7 +85,7 @@ export default function LifecycleProgressBar({
       </Stack>
 
       <Stack direction="row" sx={{ gap: "6px", width: "100%" }}>
-        {progress.phases.map((phase) => (
+        {phases.map((phase) => (
           <Typography
             key={phase.phase_id}
             sx={{

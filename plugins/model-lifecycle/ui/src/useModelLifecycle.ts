@@ -117,7 +117,8 @@ export function useModelLifecycle(
       const response = await apiServices.get<{ data: LifecyclePhase[] }>(
         `/plugins/model-lifecycle/models/${modelId}/lifecycle`
       );
-      setPhases((response.data as any)?.data || response.data || []);
+      const phasesData = (response.data as any)?.data || response.data || [];
+      setPhases(Array.isArray(phasesData) ? phasesData : []);
     } catch (err) {
       setError((err as Error).message || "Failed to load lifecycle data");
     } finally {
@@ -197,7 +198,8 @@ export function useLifecycleConfig(
       const response = await apiServices.get<{ data: LifecyclePhase[] }>(
         `/plugins/model-lifecycle/config${query}`
       );
-      setPhases((response.data as any)?.data || response.data || []);
+      const phasesData = (response.data as any)?.data || response.data || [];
+      setPhases(Array.isArray(phasesData) ? phasesData : []);
     } catch (err) {
       setError((err as Error).message || "Failed to load lifecycle config");
     } finally {

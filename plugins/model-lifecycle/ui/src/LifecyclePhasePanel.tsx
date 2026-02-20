@@ -36,7 +36,7 @@ export default function LifecyclePhasePanel({
   onValueChanged,
   apiServices,
 }: LifecyclePhasePanelProps) {
-  const items = phase.items ?? [];
+  const items = Array.isArray(phase.items) ? phase.items : [];
   const totalItems = items.length;
   const filledItems = items.filter((item) => {
     const val = item.value;

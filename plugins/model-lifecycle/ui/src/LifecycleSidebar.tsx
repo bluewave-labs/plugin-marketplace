@@ -16,9 +16,11 @@ export default function LifecycleSidebar({
   activePhaseId,
   onPhaseSelect,
 }: LifecycleSidebarProps) {
+  const progressPhases = Array.isArray(progress?.phases) ? progress.phases : [];
+
   const phaseData = useMemo(() => {
-    return phases.map((phase) => {
-      const phaseProgress = progress?.phases.find(
+    return (Array.isArray(phases) ? phases : []).map((phase) => {
+      const phaseProgress = progressPhases.find(
         (p) => p.phase_id === phase.id
       );
       return {
